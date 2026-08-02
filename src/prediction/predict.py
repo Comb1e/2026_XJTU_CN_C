@@ -14,7 +14,8 @@ import pandas as pd
 
 from .features import build_all_features
 from .baselines import (
-    shrink_gene_means, shrink_cell_means,
+    compute_loco_gene_means, compute_plain_gene_means,
+    shrink_cell_means,
     train_gene_baseline_teacher, predict_gene_baselines,
     train_cell_bias_imputer, impute_cell_biases,
     compute_label_svd, build_module_priors,
@@ -56,6 +57,60 @@ def run_prediction(config: dict[str, Any]) -> dict[str, Any]:
     cold_genes = test_genes - train_genes
     print(f"  {len(cold_genes)} cold-start genes (no training labels)")
 
+    # ── Compute gene baselines BEFORE feature construction ──
+    # CRITICAL: Gene baselines must be consistent between train and test.
+    # - Training rows: LOCO (leave-one-cell-out) mean → honest estimate.
+    # - Test warm genes: plain gene mean over all training labels.
+    # - Test cold genes: teacher model prediction.
+    # Previously, training used shrunk means and test used OOF teacher preds,
+    # creating a massive distribution mismatch that destroyed ranking signal.
+    print("\nComputing gene baselines...")
+    gene_bl, loco_train = compute_loco_gene_means(labels)
+    print(f"  LOCO gene means: std={loco_train.std():.4f} (vs label gene-std=0.359)")
+
+    # Cell baselines (shrunk means for training cells, imputed for new test cells)
+    cell_bl = shrink_cell_means(labels)
+    # Train cell bias imputer for new test cells (121 cells have no training labels)
+    from .features import build_cell_features
+    train_cell_feats = build_cell_features(
+        Path(config["paths"]["output_dir"]),
+        list(labels["cell_line_id"].unique()),
+    )
+    cell_bias_imputer, cell_bl = train_cell_bias_imputer(
+        train_cell_feats, labels,
+    )
+
+    # Train teacher model for cold-start gene baselines
+    from .features import build_gene_static_features, build_gene_expression_profile_features
+    from .baselines import (
+        build_pw140_membership_features, compute_coexpression_knn_features,
+        build_description_keyword_features,
+    )
+    gene_meta = pd.read_csv(data_dir / "metadata" / "gene_metadata.csv")
+    pathway_meta = pd.read_csv(data_dir / "metadata" / "pathway_metadata.csv")
+    expression = pd.read_csv(
+        data_dir / "features" / "cell_expression_zscore.csv", index_col=0,
+    )
+    from ..preprocess import build_gene_module_map, compute_evidence_weights
+    gene_module_map = build_gene_module_map(gene_meta)
+    evidence_weights = compute_evidence_weights(gene_meta)
+    g1 = build_gene_static_features(gene_meta, gene_module_map, evidence_weights)
+    g2 = build_gene_expression_profile_features(expression)
+    # Build gene-level features for teacher
+    pw140 = build_pw140_membership_features(gene_meta, pathway_meta)
+    knn_k = pred_cfg.get("baselines", {}).get("knn_k", 20)
+    coexpr_knn = compute_coexpression_knn_features(expression, labels, k=knn_k)
+    desc_feats = build_description_keyword_features(gene_meta)
+
+    teacher_extra = pd.concat([pw140, coexpr_knn, desc_feats], axis=1)
+    teacher, oof_preds, gene_feats = train_gene_baseline_teacher(
+        g1, g2, labels, extra_features=teacher_extra,
+    )
+    if cold_genes:
+        cold_baselines = predict_gene_baselines(teacher, gene_feats, list(cold_genes))
+        gene_bl.update(cold_baselines)
+        print(f"  Teacher predicted baselines for {len(cold_genes)} cold-start genes")
+
     # ── Build features for training pairs ──
     print("\nBuilding training features...")
     X_train, meta = build_all_features(
@@ -63,11 +118,8 @@ def run_prediction(config: dict[str, Any]) -> dict[str, Any]:
     )
 
     # ── Compute G5 collaborative features ──
-    print("\nComputing collaborative features (G5)...")
+    print("Computing collaborative features (G5)...")
     baseline_cfg = pred_cfg.get("baselines", {})
-
-    gene_bl = shrink_gene_means(labels)
-    cell_bl = shrink_cell_means(labels)
 
     # SVD latent factorization
     svd_k = baseline_cfg.get("svd_k", 20)
@@ -90,12 +142,19 @@ def run_prediction(config: dict[str, Any]) -> dict[str, Any]:
         labels[["cell_line_id", "perturbation_gene"]], neighbor_df,
     )
 
+    # Build train G5 with plain gene means (will override with LOCO below)
     g5_train = build_collaborative_features(
         labels[["cell_line_id", "perturbation_gene"]],
         gene_bl, cell_bl,
         svd_dot_products=svd_dot,
         neighbor_scores=train_neighbor,
     )
+
+    # ── OVERRIDE train G5 gene_baseline with LOCO values ──
+    # This is the critical fix: training uses leave-one-cell-out means so the
+    # model learns that g5_gene_baseline = "this gene's mean from OTHER cells",
+    # which is exactly what the plain gene mean represents for test warm genes.
+    g5_train["g5_gene_baseline"] = loco_train
 
     # Add G5 columns to X_train
     for col in g5_train.columns:
@@ -119,25 +178,6 @@ def run_prediction(config: dict[str, Any]) -> dict[str, Any]:
     print("\nBuilding test features...")
     X_test, _ = build_all_features(submission, config)
 
-    # Compute gene baselines for cold genes via teacher
-    g1 = meta.get("gene_static_features")
-    g2 = meta.get("gene_expr_profile_features")
-    if g1 is None:
-        from .features import build_gene_static_features, build_gene_expression_profile_features
-        g1 = build_gene_static_features(
-            meta["gene_meta"], meta["gene_module_map"], meta["evidence_weights"],
-        )
-        g2 = build_gene_expression_profile_features(meta["expression"])
-
-    teacher, oof_preds, gene_feats = train_gene_baseline_teacher(g1, g2, labels)
-    # Use teacher model to predict baselines for cold-start genes
-    if cold_genes:
-        cold_baselines = predict_gene_baselines(teacher, gene_feats, list(cold_genes))
-        gene_bl.update(cold_baselines)
-    # Backfill training genes with OOF predictions (avoids leakage)
-    for gene in oof_preds:
-        gene_bl[gene] = oof_preds[gene]
-
     # SVD dot products for test pairs (impute for cold genes / new cells)
     test_cold_genes_list = [g for g in submission["perturbation_gene"].unique()
                             if g not in set(svd_gene_idx)]
@@ -153,12 +193,18 @@ def run_prediction(config: dict[str, Any]) -> dict[str, Any]:
                       if c not in set(svd_cell_idx)]
     if test_new_cells:
         from .features import build_cell_features
-        test_cell_feats = build_cell_features(
-            Path(config["paths"]["output_dir"]), test_new_cells,
+        # Need ALL cells (train+new) for imputer training; only new for prediction
+        all_cells = list(labels["cell_line_id"].unique()) + test_new_cells
+        all_cell_feats = build_cell_features(
+            Path(config["paths"]["output_dir"]), all_cells,
         )
-        U_new = impute_cell_factors(U, svd_cell_idx, test_cell_feats, test_new_cells)
+        U_new = impute_cell_factors(U, svd_cell_idx, all_cell_feats, test_new_cells)
         U_extended = np.vstack([U, U_new]) if len(U) > 0 else U_new
         cell_idx_extended = list(svd_cell_idx) + test_new_cells
+        # Impute cell biases for new test cells
+        new_cell_biases = impute_cell_biases(cell_bias_imputer, test_cell_feats, test_new_cells)
+        cell_bl.update(new_cell_biases)
+        print(f"  Imputed cell biases for {len(test_new_cells)} new cells")
     else:
         U_extended = U
         cell_idx_extended = list(svd_cell_idx)
@@ -180,6 +226,7 @@ def run_prediction(config: dict[str, Any]) -> dict[str, Any]:
         submission[["cell_line_id", "perturbation_gene"]], neighbor_df,
     )
 
+    # Build test G5: plain gene means for warm genes + teacher preds for cold
     test_g5 = build_collaborative_features(
         submission[["cell_line_id", "perturbation_gene"]],
         gene_bl, cell_bl,
@@ -192,21 +239,31 @@ def run_prediction(config: dict[str, Any]) -> dict[str, Any]:
         else:
             X_test[col] = test_g5[col].values
 
-    # ── Predict ──
-    print("\nGenerating predictions...")
-    test_preds = predict_all(
-        X_test,
-        submission["cell_line_id"].to_numpy(),
-        submission["perturbation_gene"].to_numpy(),
-        models,
-        add_jitter=True,
+    # ── Gene-similarity CF for cold-start genes ──
+    print("\nComputing gene-similarity CF for cold genes...")
+    from .baselines import build_gene_similarity_cf
+    cf_cold = build_gene_similarity_cf(
+        labels, gene_meta, pathway_meta, expression, cold_genes, k=20,
+    )
+    print(f"  CF predictions for {len(cf_cold):,} (cell, gene) pairs")
+
+    # ── Predict (additive + CF + SVD) ──
+    print("\nGenerating predictions (additive + CF + SVD)...")
+    from .baselines import predict_additive
+    test_preds = predict_additive(
+        submission[["cell_line_id", "perturbation_gene"]],
+        gene_bl, cell_bl,
+        svd_dot_products=svd_dot_test,
+        svd_weight=0.3,
+        cf_predictions=cf_cold,
+        cf_weight=0.6,
     )
 
     # ── Build submission ──
     submission_df = submission.copy()
     submission_df["label"] = test_preds
 
-    print(f"\n  Predictions: mean={test_preds.mean():.4f}, "
+    print(f"\n  Additive predictions: mean={test_preds.mean():.4f}, "
           f"std={test_preds.std():.4f}, "
           f"range=[{test_preds.min():.4f}, {test_preds.max():.4f}]")
 
@@ -217,10 +274,13 @@ def run_prediction(config: dict[str, Any]) -> dict[str, Any]:
     submission_df.to_csv(submission_path, index=False)
     print(f"\n  Submission saved to: {submission_path}")
 
-    # ── Training set metrics (for reference) ──
-    print("\nComputing training metrics (for reference)...")
-    train_preds = predict_all(
-        X_train, train_cells, train_genes_arr, models, add_jitter=False,
+    # ── Training set metrics (additive model) ──
+    print("\nComputing training metrics (additive model)...")
+    train_preds = predict_additive(
+        labels[["cell_line_id", "perturbation_gene"]],
+        gene_bl, cell_bl,
+        svd_dot_products=svd_dot,
+        svd_weight=0.3,
     )
     train_metrics_df = pd.DataFrame({
         "cell_line_id": train_cells,

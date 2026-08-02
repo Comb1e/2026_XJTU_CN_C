@@ -27,7 +27,7 @@ from .models import (
     blend_ranks, calibrate_rmse, apply_calibration,
 )
 from .baselines import (
-    shrink_gene_means, shrink_cell_means,
+    compute_loco_gene_means, shrink_gene_means, shrink_cell_means,
     train_gene_baseline_teacher, predict_gene_baselines,
     train_cell_bias_imputer, impute_cell_biases,
     build_collaborative_features,
@@ -74,10 +74,10 @@ def validate_group_by_gene(
             "perturbation_gene": gene_ids[train_idx],
             "label": y_train,
         })
-        gene_bl = shrink_gene_means(train_labels)
+        gene_bl, loco_train = compute_loco_gene_means(train_labels)
         cell_bl = shrink_cell_means(train_labels)
 
-        # Overwrite G5 in X_train with fold-train values
+        # Overwrite G5 in X_train with fold-train values (LOCO for gene baseline)
         train_g5 = build_collaborative_features(
             pd.DataFrame({
                 "cell_line_id": cell_ids[train_idx],
@@ -85,6 +85,8 @@ def validate_group_by_gene(
             }),
             gene_bl, cell_bl,
         )
+        # Override with LOCO values for honest training
+        train_g5["g5_gene_baseline"] = loco_train
         for col in train_g5.columns:
             X_train[col] = train_g5[col].values
 
@@ -96,6 +98,10 @@ def validate_group_by_gene(
                 from .features import (
                     build_gene_static_features, build_gene_expression_profile_features,
                 )
+                from .baselines import (
+                    build_pw140_membership_features, compute_coexpression_knn_features,
+                    build_description_keyword_features,
+                )
                 metadata_dir = Path(config["paths"]["metadata_dir"])
                 gene_meta = pd.read_csv(metadata_dir / "gene_metadata.csv")
                 path_meta = pd.read_csv(metadata_dir / "pathway_metadata.csv")
@@ -106,16 +112,26 @@ def validate_group_by_gene(
                 ew = compute_evidence_weights(gene_meta, config)
                 g1 = build_gene_static_features(gene_meta, gmm, ew)
                 g2 = build_gene_expression_profile_features(expression)
+                # Build extra gene-level features for teacher (OOF: from fold-train only)
+                pw140 = build_pw140_membership_features(gene_meta, path_meta)
+                knn_k = config.get("prediction", {}).get("baselines", {}).get("knn_k", 20)
+                coexpr_knn = compute_coexpression_knn_features(
+                    expression, train_labels, k=knn_k,
+                )
+                desc_feats = build_description_keyword_features(gene_meta)
+                teacher_extra = pd.concat([pw140, coexpr_knn, desc_feats], axis=1)
                 teacher, oof_preds, gene_feats = train_gene_baseline_teacher(
                     g1, g2, train_labels, n_folds=min(5, len(train_genes)),
+                    extra_features=teacher_extra,
                 )
                 cold_baselines = predict_gene_baselines(
                     teacher, gene_feats, list(val_cold),
                 )
                 gene_bl.update(cold_baselines)
                 gene_bl.update(oof_preds)
-            except Exception:
-                pass  # Graceful degradation if teacher data unavailable
+            except Exception as e:
+                import warnings
+                warnings.warn(f"Teacher prediction failed (fold {fold_idx}): {e}")
 
         # Ensure all val genes/cells have baseline entries
         for g in val_genes:
@@ -224,15 +240,22 @@ def validate_group_by_cell(
             try:
                 from .features import build_cell_features
                 from .baselines import train_cell_bias_imputer, impute_cell_biases
+                # Build cell features for TRAINING cells (to fit the imputer)
+                train_cell_feats = build_cell_features(
+                    Path(config["paths"]["output_dir"]),
+                    list(train_cells),
+                )
+                imputer, _ = train_cell_bias_imputer(train_cell_feats, train_labels)
+                # Build cell features for VAL cells (to impute)
                 val_cell_feats = build_cell_features(
                     Path(config["paths"]["output_dir"]),
                     list(val_cold_cells),
                 )
-                imputer, _ = train_cell_bias_imputer(val_cell_feats, train_labels)
                 imputed = impute_cell_biases(imputer, val_cell_feats, list(val_cold_cells))
                 cell_bl.update(imputed)
-            except Exception:
-                pass  # Graceful degradation
+            except Exception as e:
+                import warnings
+                warnings.warn(f"Cell bias imputation failed: {e}")
 
         # Ensure all val cells have entries
         for c in val_cells:

@@ -104,6 +104,19 @@ def run_pipeline(config: dict[str, Any]) -> dict[str, Any]:
     )
     spca_loadings = spca_scores.attrs.get("loadings", {})
 
+    # ── Orient SPCA components by EWM sign ──
+    # SparsePCA has sign arbitrariness. Without orientation, 6 of 14 modules
+    # have negative EWM-SPCA correlation → fusion subtracts signal.
+    for k in range(n_modules):
+        spca_col = spca_scores.columns[k]
+        ewm_col = ewm_scores.columns[k]
+        if np.corrcoef(spca_scores[spca_col], ewm_scores[ewm_col])[0, 1] < 0:
+            spca_scores[spca_col] = -spca_scores[spca_col]
+            # Also flip stored loadings for consistency
+            if k in spca_loadings:
+                for gene in spca_loadings[k]:
+                    spca_loadings[k][gene] = -spca_loadings[k][gene]
+
     # ── Ensemble fusion ──
     ensemble_config = config.get("ensemble", {})
     gamma_ewm = ensemble_config.get("gamma_ewm", 0.50)
@@ -145,14 +158,15 @@ def run_pipeline(config: dict[str, Any]) -> dict[str, Any]:
         print(f"  Transform matrix diagonal range: [{diag.min():.3f}, {diag.max():.3f}]")
         print(f"  Mean diagonal: {diag.mean():.3f} (>0.5 = good meaning preservation)")
 
-    # ── Compute pathway-level scores (149 pathways) ──
+    # ── Use provider's real pathway-level scores ──
+    # Previously, _compute_pathway_scores produced a degenerate output (15 unique
+    # columns from 140, all r=1.000 with EWM modules). The provider's
+    # cell_pathway_scores_zscore.csv has genuine per-pathway z-scores computed
+    # as simple means of available genes per pathway (≥3 expressed genes).
     pathway_scores = None
     if config["modules"].get("include_pathway_level", True):
-        print("\n  Computing 149 pathway-level scores...")
-        pathway_scores = _compute_pathway_scores(
-            expression, data["pathway_meta"], gene_module_map,
-            evidence_weights,
-        )
+        print("\n  Loading 140 pathway-level scores from provider file...")
+        pathway_scores = data["pathway_scores"]
 
     # ── Derived indicators (pathway imbalance indices) ──
     print("\n  Computing derived pathway imbalance indicators...")

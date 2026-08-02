@@ -319,6 +319,14 @@ def build_pair_features(
 
     module_weight_sums = (gene_module_mask.astype(np.float64) * gene_weights[:, np.newaxis]).sum(axis=0)
 
+    # Pre-compute module EWM scores per cell for Δ_EWM baseline term
+    # M_k(c) = Σ_j w_j · z_{c,j} / Σ_j w_j  (weighted mean of module k genes in cell c)
+    weighted_expr = expr_array * gene_weights[np.newaxis, :]  # (n_cells, n_genes)
+    module_cell_scores = np.zeros((expr_array.shape[0], n_modules), dtype=np.float64)
+    for k in range(n_modules):
+        mask_k = gene_module_mask[:, k]
+        module_cell_scores[:, k] = weighted_expr[:, mask_k].sum(axis=1) / max(module_weight_sums[k], 1e-12)
+
     # For each valid pair, get its gene's module mask and weight
     pair_gene_mask = gene_module_mask[vg]  # (n_valid, 14) bool
     pair_gene_w = gene_weights[vg]         # (n_valid,) float
@@ -335,7 +343,12 @@ def build_pair_features(
             denom = total_w - w_g_k
             valid_denom = denom > 0
             dk_vals = np.zeros(in_module.sum(), dtype=np.float32)
-            dk_vals[valid_denom] = (-w_g_k[valid_denom] * z_g_k[valid_denom] / denom[valid_denom]).astype(np.float32)
+            # Fix: Δ_k = -w_g · (z_{c,g} - M_k(c)) / (Σw - w_g)
+            # Previously missing the M_k module baseline term (median relative error 41%)
+            M_k_c = module_cell_scores[vc[in_module], k]  # module baseline per pair
+            dk_vals[valid_denom] = (
+                -w_g_k[valid_denom] * (z_g_k[valid_denom] - M_k_c[valid_denom]) / denom[valid_denom]
+            ).astype(np.float32)
             # Place results back: for valid pairs, scatter into in_module positions
             valid_positions = np.where(valid_mask)[0]
             delta_k[valid_positions[in_module]] = dk_vals
@@ -396,6 +409,223 @@ def build_pair_features(
         features["pair_lineage_module_interact"] = np.zeros(n_pairs, dtype=np.float32)
 
     return pd.DataFrame(features)
+
+
+def build_pathway_match_features(
+    pairs: pd.DataFrame,
+    expression: pd.DataFrame,
+    gene_module_map: dict[str, dict],
+    pathway_scores: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    """Build pathway-level match features for (cell, gene) pairs.
+
+    For each pair, looks up the gene's annotated MitoCarta pathways and
+    computes the cell's mean/max score over those pathways.
+    This is the 149-resolution analogue of the 14-dim module_match.
+
+    Args:
+        pairs: DataFrame with [cell_line_id, perturbation_gene].
+        expression: N_cells × P_genes expression DataFrame (for cell index).
+        gene_module_map: gene → module assignments dict with pathways_raw info.
+        pathway_scores: N_cells × 149 pathways DataFrame (z-scored).
+    """
+    if pathway_scores is None:
+        return pd.DataFrame(index=range(len(pairs)))
+
+    cell_ids = pairs["cell_line_id"].tolist()
+    gene_ids = pairs["perturbation_gene"].tolist()
+    n_pairs = len(pairs)
+    features = {}
+
+    # Build gene→pathways mapping from pathways_raw field
+    def _leaf_to_pw_key(leaf: str) -> str:
+        """Convert leaf pathway name to metadata key format."""
+        return leaf.replace(" ", "_").replace(",", "").replace("(", "").replace(")", "")
+
+    gene_to_pathways: dict[str, list[str]] = {}
+    for gene, info in gene_module_map.items():
+        pw_raw = info.get("pathways_raw", "")
+        if not pw_raw:
+            continue
+        pw_list = []
+        for entry in pw_raw.split("|"):
+            entry = entry.strip()
+            if not entry or entry == "0" or entry.isdigit():
+                continue
+            parts = [p.strip() for p in entry.split(">")]
+            leaf = parts[-1]
+            if leaf and leaf != "0" and not leaf.isdigit():
+                pw_key = _leaf_to_pw_key(leaf)
+                pw_list.append(pw_key)
+        if pw_list:
+            gene_to_pathways[gene] = pw_list
+
+    # Build pathway name → column index mapping
+    pw_names = pathway_scores.columns.tolist()
+    pw_to_idx = {name: i for i, name in enumerate(pw_names)}
+
+    # Map cells to rows
+    cell_idx_map = {c: i for i, c in enumerate(pathway_scores.index)}
+    pw_array = pathway_scores.to_numpy(dtype=np.float32)
+
+    pw_mean = np.zeros(n_pairs, dtype=np.float32)
+    pw_max = np.zeros(n_pairs, dtype=np.float32)
+    pw_count = np.zeros(n_pairs, dtype=np.float32)
+
+    for i, (cell, gene) in enumerate(zip(cell_ids, gene_ids)):
+        if cell not in cell_idx_map or gene not in gene_to_pathways:
+            continue
+        ci = cell_idx_map[cell]
+        pw_indices = [pw_to_idx[pw] for pw in gene_to_pathways[gene]
+                      if pw in pw_to_idx]
+        if not pw_indices:
+            continue
+        scores = pw_array[ci, pw_indices]
+        pw_mean[i] = float(np.mean(scores))
+        pw_max[i] = float(np.max(scores))
+        pw_count[i] = float(len(pw_indices))
+
+    features["pair_pw_match_mean"] = pw_mean
+    features["pair_pw_match_max"] = pw_max
+    features["pair_pw_count"] = pw_count
+
+    return pd.DataFrame(features, dtype=np.float32)
+
+
+def _compute_res_delta_features(
+    pairs: pd.DataFrame,
+    expression: pd.DataFrame,
+    gene_module_map: dict[str, dict],
+    n_modules: int = 14,
+) -> pd.DataFrame:
+    """Compute Δ_RES knockout delta features using GSEA prefix-sum trick.
+
+    For each (cell, gene) pair, computes the change in RES enrichment score
+    per module when the gene is removed from the ranking (expression→0).
+
+    Uses O(1) prefix-suffix max arrays per cell for speed.
+    """
+    cell_ids = pairs["cell_line_id"].tolist()
+    gene_ids = pairs["perturbation_gene"].tolist()
+    n_pairs = len(pairs)
+
+    gene_list = expression.columns.tolist()
+    gene_to_idx = {g: i for i, g in enumerate(gene_list)}
+    n_genes = len(gene_list)
+
+    # Build module masks
+    module_masks = np.zeros((n_modules, n_genes), dtype=bool)
+    module_sizes = np.zeros(n_modules, dtype=np.int32)
+    for gi, gene in enumerate(gene_list):
+        if gene in gene_module_map:
+            for mod_idx in gene_module_map[gene].get("modules", []):
+                if mod_idx < n_modules:
+                    module_masks[mod_idx, gi] = True
+                    module_sizes[mod_idx] += 1
+
+    expr_array = expression.to_numpy(dtype=np.float64)
+    cell_to_row = {c: i for i, c in enumerate(expression.index)}
+
+    # Pre-allocate output
+    delta_res = np.zeros((n_pairs, n_modules), dtype=np.float32)
+
+    # Process each unique cell once (cache RES state)
+    cell_cache: dict[str, tuple] = {}
+    unique_cells = sorted(set(cell_ids))
+
+    for cell in unique_cells:
+        if cell not in cell_to_row:
+            continue
+        ci = cell_to_row[cell]
+        cell_expr = expr_array[ci]
+        ranked = np.argsort(-cell_expr)  # descending
+        rank_pos = np.zeros(n_genes, dtype=np.int32)
+        rank_pos[ranked] = np.arange(n_genes, dtype=np.int32)
+
+        # For each module, pre-compute running sums and ES
+        mod_data = {}
+        for k in range(n_modules):
+            n_set = int(module_sizes[k])
+            if n_set < 3:
+                mod_data[k] = None
+                continue
+            mask = module_masks[k]
+
+            # Running sum: hit_increment = n_genes - n_set, miss_decrement = n_set
+            hit_inc = n_genes - n_set
+            miss_dec = n_set
+
+            # Build running sum at each position
+            increments = np.where(mask[ranked], hit_inc, -miss_dec).astype(np.float64)
+            running_sum = np.zeros(n_genes + 1, dtype=np.float64)
+            running_sum[1:] = np.cumsum(increments)
+
+            # Prefix max (inclusive at each position: max of RS[0..t])
+            prefix_max = np.maximum.accumulate(running_sum)
+            # Suffix max: max of RS[t..n_genes] starting from each position
+            suffix_max = np.zeros(n_genes + 1, dtype=np.float64)
+            suffix_max[-1] = running_sum[-1]
+            for t in range(n_genes - 1, -1, -1):
+                suffix_max[t] = max(running_sum[t], suffix_max[t + 1])
+
+            # Original ES (max or min deviation, whichever is larger in abs)
+            norm_factor = np.sqrt(n_set * (n_genes - n_set) / n_genes)
+            if norm_factor < 1e-12:
+                mod_data[k] = None
+                continue
+            max_rs = float(prefix_max[-1])
+            min_rs = float(np.minimum.accumulate(running_sum)[-1])
+            if abs(max_rs) >= abs(min_rs):
+                orig_es = max_rs / norm_factor
+                use_max = True
+            else:
+                orig_es = min_rs / norm_factor
+                use_max = False
+
+            mod_data[k] = (running_sum, prefix_max, suffix_max, increments,
+                          orig_es, norm_factor, use_max)
+
+        cell_cache[cell] = (rank_pos, mod_data)
+
+    # Compute delta for each pair
+    for i, (cell, gene) in enumerate(zip(cell_ids, gene_ids)):
+        if cell not in cell_cache or gene not in gene_to_idx:
+            continue
+        rank_pos, mod_data = cell_cache[cell]
+        gi = gene_to_idx[gene]
+        p = int(rank_pos[gi])
+
+        for k in range(n_modules):
+            md = mod_data.get(k)
+            if md is None:
+                continue
+            running_sum, prefix_max, suffix_max, increments, orig_es, norm, use_max = md
+
+            # Remove gene at position p: RS'[t] = RS[t] for t<=p, RS[t]-inc for t>p
+            inc_p = increments[p]
+            # New max after removal
+            new_max_before_p = prefix_max[p]  # max of RS[0..p]
+            new_max_after_p = suffix_max[p + 1] - inc_p if p < n_genes else -1e18
+            if use_max:
+                new_es = max(new_max_before_p, new_max_after_p) / norm
+            else:
+                # For min-based ES, we need prefix_min and suffix_min similarly
+                prefix_min = np.minimum.accumulate(running_sum)
+                suffix_min = np.zeros(n_genes + 1, dtype=np.float64)
+                suffix_min[-1] = running_sum[-1]
+                for t in range(n_genes - 1, -1, -1):
+                    suffix_min[t] = min(running_sum[t], suffix_min[t + 1])
+                new_min_before_p = prefix_min[p]
+                new_min_after_p = suffix_min[p + 1] - inc_p if p < n_genes else 1e18
+                new_es = min(new_min_before_p, new_min_after_p) / norm
+
+            delta_res[i, k] = float(new_es - orig_es)
+
+    result = pd.DataFrame(
+        {f"pair_delta_res_{k:02d}": delta_res[:, k] for k in range(n_modules)},
+        dtype=np.float32,
+    )
+    return result
 
 
 # ── Full feature table assembly ─────────────────────────────────────────────
@@ -541,6 +771,43 @@ def build_all_features(
         pairs, expression, gene_module_map, evidence_weights,
         ewm_scores, spca_loadings, lineage_indicators, n_modules=14,
     )
+
+    # Optional Δ_RES features (GSEA knockout delta via prefix-sum trick)
+    if feature_cfg.get("include_res_delta", False):
+        print("  Building Δ_RES knockout delta features...")
+        g4_res = _compute_res_delta_features(
+            pairs, expression, gene_module_map, n_modules=14,
+        )
+        g4 = pd.concat([g4, g4_res], axis=1)
+
+    # Pathway-level match features (149-resolution module match)
+    if feature_cfg.get("include_pathway_match", True):
+        print("  Building pathway-level match features...")
+        pw_scores_path = features_dir / "cell_pathway_scores_zscore.csv"
+        if pw_scores_path.exists():
+            pw_scores = pd.read_csv(pw_scores_path, index_col=0)
+            g4_pw = build_pathway_match_features(
+                pairs, expression, gene_module_map, pw_scores,
+            )
+            g4 = pd.concat([g4, g4_pw], axis=1)
+
+    # Cross features: gene×cell state interactions
+    if feature_cfg.get("include_cross_features", True):
+        print("  Building cross features (gene×cell interactions)...")
+        indicators_df = pd.read_csv(outputs_dir / "cell_line_indicators.csv", index_col=0)
+        pair_z = g4["pair_z_cg"].to_numpy(dtype=np.float32)
+        pair_expr_pct = g4["pair_expr_percentile"].to_numpy(dtype=np.float32)
+        cross_feats = {}
+        # Top indicator interactions with z_cg
+        ind_cols = indicators_df.columns[:14]
+        ind_arr = indicators_df.reindex(pairs["cell_line_id"]).to_numpy(dtype=np.float32)
+        for k in range(14):
+            cross_feats[f"pair_z_x_ind_{k:02d}"] = (pair_z * ind_arr[:, k]).astype(np.float32)
+        # Expression percentile × evidence weight
+        gene_ew = np.array([evidence_weights.get(g, 1.0) for g in pairs["perturbation_gene"]], dtype=np.float32)
+        cross_feats["pair_expr_pct_x_ew"] = (pair_expr_pct * gene_ew).astype(np.float32)
+        g4_cross = pd.DataFrame(cross_feats, dtype=np.float32)
+        g4 = pd.concat([g4, g4_cross], axis=1)
 
     print("  Assembling feature table...")
     X = assemble_feature_table(pairs, g1, g2, g3, g3_lineage, g4)

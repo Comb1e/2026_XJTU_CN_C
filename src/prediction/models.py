@@ -321,6 +321,34 @@ def blend_ranks_multi(
 # ── RMSE level calibration ───────────────────────────────────────────────────
 
 
+def calibrate_quantile(
+    y_pred: np.ndarray,
+    y_true: np.ndarray,
+    n_quantiles: int = 1000,
+) -> callable:
+    """Build a monotone quantile calibrator.
+
+    Maps blended [0,1] scores through the empirical CDF⁻¹ of training labels.
+    This is monotone → zero risk to Spearman/NDCG/Precision, and forces the
+    prediction marginal onto the label marginal, fixing scale mismatch.
+
+    Returns a callable that maps y_pred → calibrated values.
+    """
+    quantiles = np.linspace(0.0, 1.0, n_quantiles)
+    label_quantiles = np.quantile(y_true, quantiles)
+    # Ensure monotonicity
+    label_quantiles = np.maximum.accumulate(label_quantiles)
+
+    def _apply(y: np.ndarray) -> np.ndarray:
+        return np.interp(
+            np.clip(y, 0.0, 1.0), quantiles, label_quantiles,
+        ).astype(np.float32)
+
+    _apply.label_quantiles = label_quantiles
+    _apply.quantiles = quantiles
+    return _apply
+
+
 def calibrate_rmse(
     y_pred: np.ndarray,
     y_true: np.ndarray,
@@ -483,9 +511,21 @@ def train_models(
         ],
     )
 
-    # Calibration (label-leakage-free: only use blended prediction features)
-    print("  Fitting RMSE calibration...")
-    cal = calibrate_rmse(blended, y)  # no gene_baselines/cell_biases to avoid leakage
+    # Calibration: quantile → feature-augmented Ridge
+    print("  Fitting calibration...")
+    # Stage 1: Monotone quantile mapping (safe for ranking, fixes scale)
+    quantile_cal = calibrate_quantile(blended, y)
+    calibrated_stage1 = quantile_cal(blended)
+
+    # Stage 2: Feature-augmented Ridge on residuals
+    # Extract gene/cell baselines from X columns if available (same features at test time)
+    gb = X["g5_gene_baseline"].values.astype(np.float32) if "g5_gene_baseline" in X.columns else None
+    cb = X["g5_cell_bias"].values.astype(np.float32) if "g5_cell_bias" in X.columns else None
+    cal = calibrate_rmse(
+        calibrated_stage1, y,
+        gene_baselines=gb,
+        cell_biases=cb,
+    )
 
     return {
         "model_a": model_a,
@@ -499,6 +539,7 @@ def train_models(
         "blend_alpha_d": alpha_d,
         "blend_alpha_e": alpha_e,
         "calibration": cal,
+        "quantile_cal": quantile_cal,
         "cold_genes": cold_genes,
     }
 
@@ -553,8 +594,19 @@ def predict_all(
         ],
     )
 
-    # Calibration (label-leakage-free)
-    final = apply_calibration(models["calibration"], blended)
+    # Calibration: quantile → feature-augmented Ridge
+    quantile_cal = models.get("quantile_cal")
+    if quantile_cal is not None:
+        calibrated = quantile_cal(blended)
+    else:
+        calibrated = blended
+
+    gb = X["g5_gene_baseline"].values.astype(np.float32) if "g5_gene_baseline" in X.columns else None
+    cb = X["g5_cell_bias"].values.astype(np.float32) if "g5_cell_bias" in X.columns else None
+    final = apply_calibration(
+        models["calibration"], calibrated,
+        gene_baselines=gb, cell_biases=cb,
+    )
 
     # Add deterministic jitter to avoid ties
     if add_jitter:

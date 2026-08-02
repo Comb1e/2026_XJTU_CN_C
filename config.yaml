@@ -43,7 +43,11 @@ ensemble:
 
 # Orthogonalization (Stage 4)
 orthogonalization:
-  method: "lowdin"             # "lowdin" | "partial" | "none" | "zca"
+  method: "none"               # "lowdin" | "partial" | "none" | "zca"
+                                # Set to "none" because Löwdin Σ^{-1/2} destroys
+                                # biologically meaningful module correlations and
+                                # adds no new information for Problem 2 (R²=1.000
+                                # from raw method columns).
   partial_corr_threshold: 0.7
 
 # Cell death module enhancement (Ref: Glover et al. 2024)
@@ -76,7 +80,7 @@ prediction:
   # Feature engineering
   features:
     pathway_pca_components: 20
-    include_res_delta: false       # Δ_RES via prefix-sum trick (expensive, default off)
+    include_res_delta: true         # Δ_RES via prefix-sum trick (now fast)
 
   # Model hyperparameters
   models:

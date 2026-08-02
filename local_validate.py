@@ -1,13 +1,17 @@
-"""Local validation script as described in 数据文件/README.md.
+"""Local validation script for Problem 2 — gene dependency prediction.
 
-Splits gene_dependency.csv by gene (80/20 group-by-gene), trains models
-on the training split, predicts on the validation split, and scores
-using the official calculate_metric.py script.
+Evaluates model performance using the official 数据文件/calculate_metric.py script.
+Supports three protocols:
+  --protocol cold  : group-by-gene split (all val genes are cold-start)
+  --protocol warm  : random pair holdout within each gene (matrix completion)
+  --protocol real  : mimics the real test — ~15% genes cold, rest warm with
+                     ~20% pair holdout (50/50 cold/warm pair split)
 
 Usage:
-    python local_validate.py                    # Default: 80/20 split
-    python local_validate.py --test-size 0.1    # 90/10 split
-    python local_validate.py --n-genes 100      # Quick test with only 100 genes
+    python local_validate.py                        # Realistic (default)
+    python local_validate.py --protocol cold        # Cold-start only
+    python local_validate.py --protocol warm        # Warm-pair only
+    python local_validate.py --n-genes 200          # Quick test
 """
 
 from __future__ import annotations
@@ -20,43 +24,143 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-# Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-
 from src.utils import load_config
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Local validation for Problem 2")
-    parser.add_argument("--test-size", type=float, default=0.2,
-                        help="Fraction of genes to hold out (default: 0.2)")
-    parser.add_argument("--n-genes", type=int, default=0,
-                        help="Limit to first N genes for quick testing (0 = all)")
-    parser.add_argument("--random-state", type=int, default=42)
-    args = parser.parse_args()
+# ═══════════════════════════════════════════════════════════════════════════════
+# Helpers
+# ═══════════════════════════════════════════════════════════════════════════════
 
-    config = load_config()
+def _build_teacher(train_labels, gene_meta, pathway_meta, expression, config):
+    """Build gene baseline teacher with all available gene-level features."""
+    from src.prediction.features import (
+        build_gene_static_features, build_gene_expression_profile_features,
+    )
+    from src.prediction.baselines import (
+        build_pw140_membership_features, compute_coexpression_knn_features,
+        build_description_keyword_features, train_gene_baseline_teacher,
+    )
+    from src.preprocess import build_gene_module_map, compute_evidence_weights
 
-    data_dir = Path(config["paths"]["data_dir"])
-    output_dir = Path(config["paths"]["output_dir"]) / "prediction"
-    output_dir.mkdir(parents=True, exist_ok=True)
+    gene_module_map = build_gene_module_map(gene_meta)
+    evidence_weights = compute_evidence_weights(gene_meta)
+    g1 = build_gene_static_features(gene_meta, gene_module_map, evidence_weights)
+    g2 = build_gene_expression_profile_features(expression)
+    pw140 = build_pw140_membership_features(gene_meta, pathway_meta)
+    knn_k = config.get("prediction", {}).get("baselines", {}).get("knn_k", 20)
+    coexpr_knn = compute_coexpression_knn_features(expression, train_labels, k=knn_k)
+    desc_feats = build_description_keyword_features(gene_meta)
+    teacher_extra = pd.concat([pw140, coexpr_knn, desc_feats], axis=1)
+    teacher, oof_preds, gene_feats = train_gene_baseline_teacher(
+        g1, g2, train_labels, extra_features=teacher_extra,
+    )
+    return teacher, oof_preds, gene_feats, gene_module_map, evidence_weights
 
-    # ── Load data ──
-    print("=" * 60)
-    print("Local Validation")
-    print("=" * 60)
 
-    labels = pd.read_csv(data_dir / "labels" / "gene_dependency.csv")
+def _compute_svd(train_labels, val_labels, cold_genes, gene_meta, expression, config):
+    """Compute SVD and impute cold gene factors for additive correction."""
+    from src.prediction.baselines import compute_label_svd, impute_gene_factors
+    from src.prediction.features import (
+        build_gene_static_features, build_gene_expression_profile_features,
+    )
+    from src.preprocess import build_gene_module_map, compute_evidence_weights
 
-    if args.n_genes > 0:
-        all_genes = sorted(labels["perturbation_gene"].unique())[:args.n_genes]
-        labels = labels[labels["perturbation_gene"].isin(all_genes)]
+    svd_k = config.get("prediction", {}).get("baselines", {}).get("svd_k", 20)
+    U, V, svd_cell_idx, svd_gene_idx, svd_global_mean = compute_label_svd(
+        train_labels, k=svd_k,
+    )
+    if cold_genes:
+        cold_list = list(cold_genes)
+        gmm = build_gene_module_map(gene_meta)
+        ew = compute_evidence_weights(gene_meta)
+        g1 = build_gene_static_features(gene_meta, gmm, ew)
+        g2 = build_gene_expression_profile_features(expression)
+        V_cold = impute_gene_factors(V, svd_gene_idx, g1, g2, cold_list)
+        V_ext = np.vstack([V, V_cold]) if len(V) > 0 else V_cold
+        gene_idx_ext = list(svd_gene_idx) + cold_list
+    else:
+        V_ext = V
+        gene_idx_ext = list(svd_gene_idx)
 
-    print(f"\nTotal: {len(labels):,} pairs, "
-          f"{labels['cell_line_id'].nunique()} cells, "
-          f"{labels['perturbation_gene'].nunique()} genes")
+    gene_to_col = {g: i for i, g in enumerate(gene_idx_ext)}
+    cell_to_row = {c: i for i, c in enumerate(svd_cell_idx)}
 
-    # ── Split by gene ──
+    svd_dot = {}
+    for _, row in val_labels.iterrows():
+        c, g = row["cell_line_id"], row["perturbation_gene"]
+        if c in cell_to_row and g in gene_to_col:
+            svd_dot[(c, g)] = float(np.dot(
+                U[cell_to_row[c]], V_ext[gene_to_col[g]]
+            ))
+        else:
+            svd_dot[(c, g)] = 0.0
+
+    return svd_dot
+
+
+def _build_features(pairs, train_labels, gene_bl, cell_bl, config):
+    """Build feature table and add G5 collaborative features."""
+    from src.prediction.features import build_all_features
+    from src.prediction.baselines import build_collaborative_features
+
+    X, meta = build_all_features(pairs[["cell_line_id", "perturbation_gene"]], config)
+    g5 = build_collaborative_features(
+        pairs[["cell_line_id", "perturbation_gene"]], gene_bl, cell_bl,
+    )
+    for col in g5.columns:
+        X[col] = g5[col].values
+    return X, meta
+
+
+def _score(submission_df, answer_df, data_dir, label=""):
+    """Score predictions using internal metrics."""
+    from src.prediction.metrics import compute_metrics_df
+    df = pd.DataFrame({
+        "cell_line_id": answer_df["cell_line_id"].values,
+        "perturbation_gene": answer_df["perturbation_gene"].values,
+        "prediction": submission_df["label"].values,
+        "truth": answer_df["label"].values,
+    })
+    metrics = compute_metrics_df(df)
+    prefix = f"[{label}] " if label else ""
+    print(f"  {prefix}S={metrics['final_score']:.4f}, "
+          f"Spearman={metrics['spearman_score']:.4f}, "
+          f"NDCG={metrics['ndcg_score']:.4f}, "
+          f"Precision={metrics['precision_score']:.4f}, "
+          f"RMSE={metrics['rmse_score']:.4f}")
+    return metrics
+
+
+def _run_official_scoring(submission_path, answer_path, data_dir):
+    """Run the official calculate_metric.py script."""
+    script_path = data_dir / "calculate_metric.py"
+    if not script_path.exists():
+        print(f"ERROR: Official script not found at {script_path}")
+        return
+    cmd = [sys.executable, str(script_path), str(submission_path), str(answer_path)]
+    result = subprocess.run(cmd, capture_output=True, text=True,
+                           cwd=str(Path(__file__).parent))
+    if result.returncode == 0:
+        print(result.stdout)
+    else:
+        print("STDERR:", result.stderr)
+        print("STDOUT:", result.stdout)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Protocol: Cold-start (group-by-gene split)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def run_cold(labels, config, data_dir, output_dir, args):
+    """All val genes are held-out entirely (cold-start)."""
+    from src.prediction.baselines import (
+        compute_loco_gene_means, shrink_cell_means,
+        predict_gene_baselines, predict_additive,
+    )
+    from src.prediction.models import train_models, predict_all
+
+    # Split by gene
     unique_genes = labels["perturbation_gene"].unique()
     rng = np.random.RandomState(args.random_state)
     shuffled = rng.permutation(unique_genes)
@@ -66,146 +170,421 @@ def main():
 
     train_labels = labels[labels["perturbation_gene"].isin(train_genes)].copy()
     val_labels = labels[labels["perturbation_gene"].isin(val_genes)].copy()
+    cold_genes = val_genes - train_genes
 
-    print(f"Train: {len(train_labels):,} pairs, {len(train_genes)} genes "
-          f"({len(train_labels['cell_line_id'].unique())} cells)")
-    print(f"Val:   {len(val_labels):,} pairs, {len(val_genes)} genes "
-          f"({len(val_labels['cell_line_id'].unique())} cells)")
-    print(f"Cold-start genes (in val but not train): {len(val_genes - train_genes)}")
+    print(f"\nTrain: {len(train_labels):,} pairs, {len(train_genes)} genes")
+    print(f"Val:   {len(val_labels):,} pairs, {len(val_genes)} genes")
+    print(f"Cold genes: {len(cold_genes)}")
 
-    # ── Build features ──
-    print("\nBuilding training features...")
-    from src.prediction.features import build_all_features
-    from src.prediction.baselines import (
-        shrink_gene_means, shrink_cell_means,
-        build_collaborative_features,
-        train_gene_baseline_teacher, predict_gene_baselines,
-    )
-
-    X_train, meta = build_all_features(
-        train_labels[["cell_line_id", "perturbation_gene"]], config,
-    )
-    gene_bl = shrink_gene_means(train_labels)
+    # Baselines
+    gene_bl, loco_train = compute_loco_gene_means(train_labels)
     cell_bl = shrink_cell_means(train_labels)
-    g5_train = build_collaborative_features(
-        train_labels[["cell_line_id", "perturbation_gene"]], gene_bl, cell_bl,
-    )
-    for col in g5_train.columns:
-        X_train[col] = g5_train[col].values
 
-    # ── Train models ──
+    # Teacher
+    gene_meta = pd.read_csv(data_dir / "metadata" / "gene_metadata.csv")
+    pathway_meta = pd.read_csv(data_dir / "metadata" / "pathway_metadata.csv")
+    expression = pd.read_csv(data_dir / "features" / "cell_expression_zscore.csv", index_col=0)
+    teacher, _, gene_feats, gmm, ew = _build_teacher(
+        train_labels, gene_meta, pathway_meta, expression, config,
+    )
+    if cold_genes:
+        cold_bl = predict_gene_baselines(teacher, gene_feats, list(cold_genes))
+        gene_bl.update(cold_bl)
+
+    # Gene-similarity CF for cold genes
+    from src.prediction.baselines import build_gene_similarity_cf
+    cf_cold = build_gene_similarity_cf(
+        train_labels, gene_meta, pathway_meta, expression, cold_genes, k=20,
+    )
+
+    # SVD
+    svd_dot = _compute_svd(train_labels, val_labels, cold_genes, gene_meta, expression, config)
+
+    # Features
+    print("\nBuilding features...")
+    X_train, _ = _build_features(train_labels, train_labels, gene_bl, cell_bl, config)
+    X_train["g5_gene_baseline"] = loco_train  # LOCO override for honest training
+
+    # Train (optional ensemble for comparison)
     print("\nTraining models...")
-    from src.prediction.models import train_models
-
     y_train = train_labels["label"].to_numpy(dtype=np.float64)
-    train_cells = train_labels["cell_line_id"].to_numpy()
-    train_genes_arr = train_labels["perturbation_gene"].to_numpy()
-
-    cold_genes_in_val = val_genes - train_genes
     models = train_models(
-        X_train, y_train, train_cells, train_genes_arr,
-        cold_genes=cold_genes_in_val, config=config,
+        X_train, y_train,
+        train_labels["cell_line_id"].to_numpy(),
+        train_labels["perturbation_gene"].to_numpy(),
+        cold_genes=cold_genes, config=config,
     )
 
-    # ── Build val features ──
-    print("\nBuilding validation features...")
-    X_val, _ = build_all_features(
-        val_labels[["cell_line_id", "perturbation_gene"]], config,
-    )
-
-    # Predict gene baselines for cold genes
-    g1 = meta.get("gene_static_features")
-    g2 = meta.get("gene_expr_profile_features")
-    if g1 is None:
-        from src.prediction.features import (
-            build_gene_static_features, build_gene_expression_profile_features,
-        )
-        g1 = build_gene_static_features(
-            meta["gene_meta"], meta["gene_module_map"], meta["evidence_weights"],
-        )
-        g2 = build_gene_expression_profile_features(meta["expression"])
-
-    teacher, oof_preds, gene_feats = train_gene_baseline_teacher(g1, g2, train_labels)
-    # Backfill training genes with OOF predictions
-    for gene, val in oof_preds.items():
-        gene_bl[gene] = val
-    # Predict baselines for cold-start genes via teacher model
-    if cold_genes_in_val:
-        cold_baselines = predict_gene_baselines(teacher, gene_feats, list(cold_genes_in_val))
-        gene_bl.update(cold_baselines)
+    # Val features
     for cell in val_labels["cell_line_id"].unique():
         if cell not in cell_bl:
             cell_bl[cell] = 0.0
+    X_val, _ = _build_features(val_labels, train_labels, gene_bl, cell_bl, config)
 
-    g5_val = build_collaborative_features(
-        val_labels[["cell_line_id", "perturbation_gene"]], gene_bl, cell_bl,
-    )
-    for col in g5_val.columns:
-        X_val[col] = g5_val[col].values
-
-    # ── Predict ──
-    print("\nGenerating predictions...")
-    from src.prediction.models import predict_all
-
-    val_preds = predict_all(
+    # Predict
+    print("\nPredicting...")
+    ens_preds = predict_all(
         X_val,
         val_labels["cell_line_id"].to_numpy(),
         val_labels["perturbation_gene"].to_numpy(),
-        models,
-        add_jitter=True,
+        models, add_jitter=True,
+    )
+    add_preds = predict_additive(
+        val_labels[["cell_line_id", "perturbation_gene"]], gene_bl, cell_bl,
+    )
+    add_svd_preds = predict_additive(
+        val_labels[["cell_line_id", "perturbation_gene"]], gene_bl, cell_bl,
+        svd_dot_products=svd_dot, svd_weight=0.3,
+        cf_predictions=cf_cold, cf_weight=0.6,
     )
 
-    # ── Save submission and answer files ──
-    submission_path = output_dir / "val_submission.csv"
-    answer_path = output_dir / "val_answer.csv"
+    # Score
+    print("\n--- Results ---")
+    _score(pd.DataFrame({"label": add_preds}), val_labels, data_dir, "additive")
+    _score(pd.DataFrame({"label": add_svd_preds}), val_labels, data_dir, "additive+SVD")
+    _score(pd.DataFrame({"label": ens_preds}), val_labels, data_dir, "ensemble")
 
+    # Save
     submission_df = val_labels[["cell_line_id", "perturbation_gene"]].copy()
-    submission_df["label"] = val_preds
-    submission_df.to_csv(submission_path, index=False)
+    submission_df["label"] = add_svd_preds
+    submission_df.to_csv(output_dir / "val_submission.csv", index=False)
+    val_labels[["cell_line_id", "perturbation_gene", "label"]].to_csv(
+        output_dir / "val_answer.csv", index=False,
+    )
+    print(f"\nSaved: {output_dir / 'val_submission.csv'}")
+    print(f"Saved: {output_dir / 'val_answer.csv'}")
+    _run_official_scoring(output_dir / "val_submission.csv", output_dir / "val_answer.csv", data_dir)
 
-    answer_df = val_labels[["cell_line_id", "perturbation_gene", "label"]].copy()
-    answer_df.to_csv(answer_path, index=False)
+    return {"additive": add_svd_preds, "ensemble": ens_preds, "val_labels": val_labels}
 
-    print(f"\nSaved: {submission_path}")
-    print(f"Saved: {answer_path}")
 
-    # ── Run official scoring script ──
+# ═══════════════════════════════════════════════════════════════════════════════
+# Protocol: Warm-pair (random pair holdout within each gene)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def run_warm(labels, config, data_dir, output_dir, args):
+    """Hold out random cell-gene pairs; all genes appear in both train and val."""
+    from src.prediction.baselines import (
+        compute_loco_gene_means, shrink_cell_means,
+        predict_gene_baselines, predict_additive,
+    )
+    from src.prediction.models import train_models, predict_all
+
+    rng = np.random.RandomState(args.random_state)
+
+    # Stratified holdout: within each cell, hold out test_size fraction of pairs
+    train_rows, val_rows = [], []
+    for cell in labels["cell_line_id"].unique():
+        cell_data = labels[labels["cell_line_id"] == cell]
+        n = len(cell_data)
+        n_val = max(1, int(n * args.test_size))
+        val_idx = rng.choice(n, n_val, replace=False)
+        val_mask = np.zeros(n, dtype=bool); val_mask[val_idx] = True
+        train_rows.append(cell_data[~val_mask])
+        val_rows.append(cell_data[val_mask])
+
+    train_labels = pd.concat(train_rows).reset_index(drop=True)
+    val_labels = pd.concat(val_rows).reset_index(drop=True)
+    cold_genes = set(val_labels["perturbation_gene"].unique()) - set(train_labels["perturbation_gene"].unique())
+
+    print(f"\nTrain: {len(train_labels):,} pairs, {train_labels['perturbation_gene'].nunique()} genes")
+    print(f"Val:   {len(val_labels):,} pairs, {val_labels['perturbation_gene'].nunique()} genes")
+    print(f"Cold genes (no train pairs): {len(cold_genes)}")
+
+    # Baselines
+    gene_bl, loco_train = compute_loco_gene_means(train_labels)
+    cell_bl = shrink_cell_means(train_labels)
+
+    # Teacher for any cold genes
+    gene_meta = pd.read_csv(data_dir / "metadata" / "gene_metadata.csv")
+    pathway_meta = pd.read_csv(data_dir / "metadata" / "pathway_metadata.csv")
+    expression = pd.read_csv(data_dir / "features" / "cell_expression_zscore.csv", index_col=0)
+    if cold_genes:
+        teacher, _, gene_feats, _, _ = _build_teacher(
+            train_labels, gene_meta, pathway_meta, expression, config,
+        )
+        cold_bl = predict_gene_baselines(teacher, gene_feats, list(cold_genes))
+        gene_bl.update(cold_bl)
+
+    # Gene-similarity CF for cold genes (key innovation for cell-specific cold predictions)
+    from src.prediction.baselines import build_gene_similarity_cf
+    cf_cold = build_gene_similarity_cf(
+        train_labels, gene_meta, pathway_meta, expression, cold_genes, k=20,
+    )
+
+    # SVD
+    svd_dot = _compute_svd(train_labels, val_labels, cold_genes, gene_meta, expression, config)
+
+    # Features
+    print("\nBuilding features...")
+    X_train, _ = _build_features(train_labels, train_labels, gene_bl, cell_bl, config)
+    X_train["g5_gene_baseline"] = loco_train
+
+    # Train
+    print("\nTraining models...")
+    y_train = train_labels["label"].to_numpy(dtype=np.float64)
+    models = train_models(
+        X_train, y_train,
+        train_labels["cell_line_id"].to_numpy(),
+        train_labels["perturbation_gene"].to_numpy(),
+        cold_genes=cold_genes, config=config,
+    )
+
+    # Val
+    for cell in val_labels["cell_line_id"].unique():
+        if cell not in cell_bl:
+            cell_bl[cell] = 0.0
+    X_val, _ = _build_features(val_labels, train_labels, gene_bl, cell_bl, config)
+
+    # Predict
+    print("\nPredicting...")
+    ens_preds = predict_all(
+        X_val,
+        val_labels["cell_line_id"].to_numpy(),
+        val_labels["perturbation_gene"].to_numpy(),
+        models, add_jitter=True,
+    )
+    add_preds = predict_additive(
+        val_labels[["cell_line_id", "perturbation_gene"]], gene_bl, cell_bl,
+    )
+    add_svd_preds = predict_additive(
+        val_labels[["cell_line_id", "perturbation_gene"]], gene_bl, cell_bl,
+        svd_dot_products=svd_dot, svd_weight=0.3,
+        cf_predictions=cf_cold, cf_weight=0.6,
+    )
+
+    # Score per regime
+    print("\n--- Results ---")
+    _score(pd.DataFrame({"label": add_preds}), val_labels, data_dir, "additive-ALL")
+    _score(pd.DataFrame({"label": add_svd_preds}), val_labels, data_dir, "additive+SVD-ALL")
+    _score(pd.DataFrame({"label": ens_preds}), val_labels, data_dir, "ensemble-ALL")
+
+    warm_mask = ~val_labels["perturbation_gene"].isin(cold_genes)
+    cold_mask = val_labels["perturbation_gene"].isin(cold_genes)
+    n_cold_pairs = cold_mask.sum()
+    print(f"\n  Cold pairs: {n_cold_pairs} ({100*n_cold_pairs/len(val_labels):.1f}%)")
+
+    if warm_mask.any():
+        print("\n--- Warm-pair regime ---")
+        _score(pd.DataFrame({"label": add_svd_preds[warm_mask.values]}),
+               val_labels[warm_mask.values].reset_index(drop=True), data_dir, "additive+SVD-WARM")
+    if cold_mask.any():
+        print("\n--- Cold-pair regime ---")
+        _score(pd.DataFrame({"label": add_svd_preds[cold_mask.values]}),
+               val_labels[cold_mask.values].reset_index(drop=True), data_dir, "additive+SVD-COLD")
+
+    # Save
+    submission_df = val_labels[["cell_line_id", "perturbation_gene"]].copy()
+    submission_df["label"] = add_svd_preds
+    submission_df.to_csv(output_dir / "val_submission.csv", index=False)
+    val_labels[["cell_line_id", "perturbation_gene", "label"]].to_csv(
+        output_dir / "val_answer.csv", index=False,
+    )
+    print(f"\nSaved: {output_dir / 'val_submission.csv'}")
+    _run_official_scoring(output_dir / "val_submission.csv", output_dir / "val_answer.csv", data_dir)
+
+    return {"additive": add_svd_preds, "ensemble": ens_preds, "val_labels": val_labels}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Protocol: Realistic (mimics the real test — ~50/50 cold/warm pair split)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def run_real(labels, config, data_dir, output_dir, args):
+    """Mimics the real test: ~15% genes cold, rest warm with ~20% pair holdout."""
+    from src.prediction.baselines import (
+        compute_loco_gene_means, shrink_cell_means,
+        predict_gene_baselines, predict_additive,
+    )
+    from src.prediction.models import train_models, predict_all
+
+    rng = np.random.RandomState(args.random_state)
+    unique_genes = labels["perturbation_gene"].unique()
+    shuffled = rng.permutation(unique_genes)
+
+    # Hold out ~15% genes as cold (matching real test: 165/1098 ≈ 15%)
+    n_cold_genes = max(1, int(len(shuffled) * 0.15))
+    cold_genes = set(shuffled[:n_cold_genes])
+    warm_genes = set(shuffled[n_cold_genes:])
+
+    # For warm genes: hold out random pairs per cell
+    # For cold genes: all pairs go to val
+    train_rows, val_rows = [], []
+    for cell in labels["cell_line_id"].unique():
+        cell_data = labels[labels["cell_line_id"] == cell]
+        cell_cold = cell_data[cell_data["perturbation_gene"].isin(cold_genes)]
+        cell_warm = cell_data[cell_data["perturbation_gene"].isin(warm_genes)]
+
+        val_rows.append(cell_cold)  # All cold pairs → val
+
+        if len(cell_warm) > 0:
+            n_val_warm = max(1, int(len(cell_warm) * args.test_size))
+            val_idx = rng.choice(len(cell_warm), n_val_warm, replace=False)
+            val_mask = np.zeros(len(cell_warm), dtype=bool); val_mask[val_idx] = True
+            train_rows.append(cell_warm[~val_mask])
+            val_rows.append(cell_warm[val_mask])
+        else:
+            train_rows.append(cell_warm)
+
+    train_labels = pd.concat(train_rows).reset_index(drop=True)
+    val_labels = pd.concat(val_rows).reset_index(drop=True)
+    val_cold_genes = set(val_labels["perturbation_gene"].unique()) - set(train_labels["perturbation_gene"].unique())
+
+    n_cold_pairs = len(val_labels[val_labels["perturbation_gene"].isin(cold_genes)])
+    n_warm_pairs = len(val_labels[~val_labels["perturbation_gene"].isin(cold_genes)])
+
+    print(f"\nTrain: {len(train_labels):,} pairs, {train_labels['perturbation_gene'].nunique()} genes")
+    print(f"Val:   {len(val_labels):,} pairs, {val_labels['perturbation_gene'].nunique()} genes")
+    print(f"  Cold pairs: {n_cold_pairs:,} ({100*n_cold_pairs/len(val_labels):.1f}%)")
+    print(f"  Warm pairs: {n_warm_pairs:,} ({100*n_warm_pairs/len(val_labels):.1f}%)")
+    print(f"  Cold genes: {len(val_cold_genes)}")
+
+    # Baselines
+    gene_bl, loco_train = compute_loco_gene_means(train_labels)
+    cell_bl = shrink_cell_means(train_labels)
+
+    # Teacher
+    gene_meta = pd.read_csv(data_dir / "metadata" / "gene_metadata.csv")
+    pathway_meta = pd.read_csv(data_dir / "metadata" / "pathway_metadata.csv")
+    expression = pd.read_csv(data_dir / "features" / "cell_expression_zscore.csv", index_col=0)
+    if val_cold_genes:
+        teacher, _, gene_feats, _, _ = _build_teacher(
+            train_labels, gene_meta, pathway_meta, expression, config,
+        )
+        cold_bl = predict_gene_baselines(teacher, gene_feats, list(val_cold_genes))
+        gene_bl.update(cold_bl)
+
+    # Gene-similarity CF for cold genes
+    from src.prediction.baselines import build_gene_similarity_cf
+    cf_cold = build_gene_similarity_cf(
+        train_labels, gene_meta, pathway_meta, expression, val_cold_genes, k=20,
+    )
+
+    # SVD
+    svd_dot = _compute_svd(train_labels, val_labels, val_cold_genes, gene_meta, expression, config)
+
+    # Features
+    print("\nBuilding features...")
+    X_train, _ = _build_features(train_labels, train_labels, gene_bl, cell_bl, config)
+    X_train["g5_gene_baseline"] = loco_train
+
+    # Train
+    print("\nTraining models...")
+    y_train = train_labels["label"].to_numpy(dtype=np.float64)
+    models = train_models(
+        X_train, y_train,
+        train_labels["cell_line_id"].to_numpy(),
+        train_labels["perturbation_gene"].to_numpy(),
+        cold_genes=val_cold_genes, config=config,
+    )
+
+    # Val
+    for cell in val_labels["cell_line_id"].unique():
+        if cell not in cell_bl:
+            cell_bl[cell] = 0.0
+    X_val, _ = _build_features(val_labels, train_labels, gene_bl, cell_bl, config)
+
+    # Predict
+    print("\nPredicting...")
+    ens_preds = predict_all(
+        X_val,
+        val_labels["cell_line_id"].to_numpy(),
+        val_labels["perturbation_gene"].to_numpy(),
+        models, add_jitter=True,
+    )
+    add_preds = predict_additive(
+        val_labels[["cell_line_id", "perturbation_gene"]], gene_bl, cell_bl,
+    )
+    add_svd_preds = predict_additive(
+        val_labels[["cell_line_id", "perturbation_gene"]], gene_bl, cell_bl,
+        svd_dot_products=svd_dot, svd_weight=0.3,
+        cf_predictions=cf_cold, cf_weight=0.6,
+    )
+    add_cf_preds = predict_additive(
+        val_labels[["cell_line_id", "perturbation_gene"]], gene_bl, cell_bl,
+        svd_dot_products=svd_dot, svd_weight=0.3,
+        cf_predictions=cf_cold, cf_weight=0.6,
+    )
+
+    # Score — overall and per-regime
     print("\n" + "=" * 60)
-    print("Running official scoring script...")
+    print("RESULTS")
+    print("=" * 60)
+    print("\n--- Overall ---")
+    _score(pd.DataFrame({"label": add_preds}), val_labels, data_dir, "additive")
+    _score(pd.DataFrame({"label": add_svd_preds}), val_labels, data_dir, "additive+SVD")
+    _score(pd.DataFrame({"label": add_cf_preds}), val_labels, data_dir, "additive+SVD+CF")
+    _score(pd.DataFrame({"label": ens_preds}), val_labels, data_dir, "ensemble")
+
+    warm_mask = ~val_labels["perturbation_gene"].isin(cold_genes)
+    cold_mask = val_labels["perturbation_gene"].isin(cold_genes)
+
+    if warm_mask.any():
+        print("\n--- Warm regime (matrix completion) ---")
+        _score(pd.DataFrame({"label": add_cf_preds[warm_mask.values]}),
+               val_labels[warm_mask.values].reset_index(drop=True), data_dir, "add+CF-WARM")
+    if cold_mask.any():
+        print("\n--- Cold regime (cold-start) ---")
+        _score(pd.DataFrame({"label": add_cf_preds[cold_mask.values]}),
+               val_labels[cold_mask.values].reset_index(drop=True), data_dir, "add+CF-COLD")
+
+    # Save and run official scoring
+    submission_df = val_labels[["cell_line_id", "perturbation_gene"]].copy()
+    submission_df["label"] = add_cf_preds
+    submission_df.to_csv(output_dir / "val_submission.csv", index=False)
+    val_labels[["cell_line_id", "perturbation_gene", "label"]].to_csv(
+        output_dir / "val_answer.csv", index=False,
+    )
+    print(f"\nSaved: {output_dir / 'val_submission.csv'}")
+
+    print("\n" + "=" * 60)
+    print("OFFICIAL SCORING SCRIPT")
+    print("=" * 60)
+    _run_official_scoring(output_dir / "val_submission.csv", output_dir / "val_answer.csv", data_dir)
+
+    return {"additive": add_svd_preds, "ensemble": ens_preds, "val_labels": val_labels}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Main
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def main():
+    parser = argparse.ArgumentParser(description="Local validation for Problem 2")
+    parser.add_argument("--test-size", type=float, default=0.2,
+                        help="Fraction to hold out (default: 0.2)")
+    parser.add_argument("--n-genes", type=int, default=0,
+                        help="Limit to first N genes (0 = all)")
+    parser.add_argument("--random-state", type=int, default=42)
+    parser.add_argument("--protocol", type=str, default="real",
+                        choices=["cold", "warm", "real"],
+                        help="Validation protocol (default: real)")
+    args = parser.parse_args()
+
+    config = load_config()
+    data_dir = Path(config["paths"]["data_dir"])
+    output_dir = Path(config["paths"]["output_dir"]) / "prediction"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    print("=" * 60)
+    print(f"Local Validation — protocol={args.protocol}, test_size={args.test_size}")
     print("=" * 60)
 
-    script_path = data_dir / "calculate_metric.py"
-    if not script_path.exists():
-        print(f"ERROR: Official script not found at {script_path}")
-        sys.exit(1)
+    labels = pd.read_csv(data_dir / "labels" / "gene_dependency.csv")
+    if args.n_genes > 0:
+        all_genes = sorted(labels["perturbation_gene"].unique())[:args.n_genes]
+        labels = labels[labels["perturbation_gene"].isin(all_genes)]
 
-    # Copy the script's approach — run via subprocess
-    cmd = [
-        sys.executable, str(script_path),
-        str(submission_path), str(answer_path),
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(Path(__file__).parent))
+    print(f"\nTotal: {len(labels):,} pairs, "
+          f"{labels['cell_line_id'].nunique()} cells, "
+          f"{labels['perturbation_gene'].nunique()} genes")
 
-    if result.returncode != 0:
-        print("STDERR:", result.stderr)
-        print("STDOUT:", result.stdout)
-        sys.exit(result.returncode)
-
-    print(result.stdout)
-
-    # Also compute with our internal metrics for comparison
-    print("\n" + "=" * 60)
-    print("Internal metrics (for verification):")
-    print("=" * 60)
-    from src.prediction.metrics import compute_metrics_df, format_metric_report
-    df_val = pd.DataFrame({
-        "cell_line_id": val_labels["cell_line_id"].values,
-        "perturbation_gene": val_labels["perturbation_gene"].values,
-        "prediction": val_preds,
-        "truth": val_labels["label"].values,
-    })
-    our_metrics = compute_metrics_df(df_val)
-    print(format_metric_report(our_metrics))
+    if args.protocol == "cold":
+        run_cold(labels, config, data_dir, output_dir, args)
+    elif args.protocol == "warm":
+        run_warm(labels, config, data_dir, output_dir, args)
+    else:
+        run_real(labels, config, data_dir, output_dir, args)
 
 
 if __name__ == "__main__":

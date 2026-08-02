@@ -120,7 +120,20 @@ def compute_ewm_knockout_delta(
         total_w = module_weight_sums[mod_idx]
         denom = total_w - w_g
         if denom > 0:
-            # Δ = -w_g * z / (Σw - w_g)
-            delta[mod_idx] = -w_g * z_cg / denom
+            # Compute module baseline M_k(c) for this cell
+            # M_k(c) = Σ w_j · z_{c,j} / Σ w_j (weighted mean of genes in module)
+            module_genes = [
+                g for g in gene_list
+                if g in gene_module_map
+                and mod_idx in gene_module_map[g].get("modules", [])
+            ]
+            if module_genes:
+                m_z = expression.loc[cell_line_id, module_genes].to_numpy(dtype=np.float64)
+                m_w = np.array([evidence_weights.get(g, 1.0) for g in module_genes], dtype=np.float64)
+                M_k = float(np.dot(m_w, m_z) / m_w.sum())
+            else:
+                M_k = 0.0
+            # Correct formula: Δ_k = -w_g · (z_{c,g} - M_k(c)) / (Σw - w_g)
+            delta[mod_idx] = -w_g * (z_cg - M_k) / denom
 
     return delta
