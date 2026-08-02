@@ -76,6 +76,56 @@ def prepare_features_b(X: pd.DataFrame) -> np.ndarray:
     return X[feature_cols].to_numpy(dtype=np.float32)
 
 
+# ── Model D: XGBoost Regressor ────────────────────────────────────────────
+
+DEFAULT_XGB_PARAMS = {
+    "n_estimators": 500,
+    "max_depth": 8,
+    "learning_rate": 0.03,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "reg_lambda": 1.0,
+    "reg_alpha": 0.0,
+    "random_state": 42,
+    "n_jobs": -1,
+    "verbosity": 0,
+}
+
+
+def create_model_d(params: dict[str, Any] | None = None) -> Any:
+    """Create Model D: XGBoost Regressor (cold-start safe)."""
+    if not HAS_XGBOOST:
+        return None
+    p = {**DEFAULT_XGB_PARAMS, **(params or {})}
+    return xgb.XGBRegressor(**p)
+
+
+# ── Model E: LightGBM Regressor ──────────────────────────────────────────────
+
+DEFAULT_LGB_PARAMS = {
+    "n_estimators": 500,
+    "learning_rate": 0.03,
+    "num_leaves": 127,
+    "max_depth": 10,
+    "min_child_samples": 30,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "reg_lambda": 1.0,
+    "reg_alpha": 0.0,
+    "random_state": 42,
+    "verbosity": -1,
+    "n_jobs": -1,
+}
+
+
+def create_model_e(params: dict[str, Any] | None = None) -> Any:
+    """Create Model E: LightGBM Regressor (cold-start safe)."""
+    if not HAS_LIGHTGBM:
+        return None
+    p = {**DEFAULT_LGB_PARAMS, **(params or {})}
+    return lgb.LGBMRegressor(**p)
+
+
 # ── Model C: Pairwise ranking (Bradley-Terry) ────────────────────────────────
 
 
@@ -219,6 +269,55 @@ def _to_ranks(values: np.ndarray) -> np.ndarray:
     return rankdata(-values, method="average")
 
 
+def blend_ranks_multi(
+    cell_ids: np.ndarray,
+    cold_mask: np.ndarray | None = None,
+    models: list[tuple | None] | None = None,
+) -> np.ndarray:
+    """Blend N model predictions in rank space with per-row normalization.
+
+    Args:
+        cell_ids: cell identifier for each row.
+        cold_mask: boolean mask for cold-start genes (True = cold).
+        models: list of (predictions, alpha_weight, is_cold_safe) tuples.
+                None entries are skipped.
+
+    Returns blended raw scores (not ranks) in [0, 1].
+    """
+    if models is None:
+        models = []
+    # Filter out None entries
+    active = [(p, a, cs) for item in models if item is not None
+              for p, a, cs in [item] if p is not None and a > 0]
+    if not active:
+        return np.zeros(len(cell_ids), dtype=np.float32)
+
+    result = np.zeros(len(cell_ids), dtype=np.float32)
+
+    for cell in np.unique(cell_ids):
+        mask = cell_ids == cell
+        n = mask.sum()
+        if n == 0:
+            continue
+
+        rank_sum = np.zeros(n, dtype=np.float64)
+        per_row_weight = np.zeros(n, dtype=np.float64)
+
+        for preds, alpha, is_cold_safe in active:
+            if not is_cold_safe and cold_mask is not None:
+                weight = np.where(cold_mask[mask], 0.0, alpha)
+            else:
+                weight = np.full(n, alpha, dtype=np.float64)
+            rank_sum += weight * _to_ranks(preds[mask])
+            per_row_weight += weight
+
+        valid = per_row_weight > 0
+        rank_sum[valid] /= per_row_weight[valid]
+        result[mask] = (n - rank_sum) / n
+
+    return result
+
+
 # ── RMSE level calibration ───────────────────────────────────────────────────
 
 
@@ -311,59 +410,94 @@ def train_models(
         cold_genes = set()
 
     cold_mask = np.array([g in cold_genes for g in gene_ids])
+    train_mask = ~cold_mask if cold_genes else np.ones(len(y), dtype=bool)
 
-    # Model A (cold-start safe)
-    print("  Training Model A (cold-start safe)...")
+    # Feature matrices
     Xa = prepare_features_a(X)
+    Xb = prepare_features_b(X)
+
+    # Model A: HGBR (always trained, cold-safe backbone)
+    print("  Training Model A (HGBR)...")
     model_a = create_model_a(model_cfg.get("model_a", {}))
     model_a.fit(Xa, y)
     preds_a = model_a.predict(Xa).astype(np.float32)
 
-    # Model B (with collaborative features, only for training genes)
-    print("  Training Model B (collaborative)...")
-    Xb = prepare_features_b(X)
-    train_mask = ~cold_mask if cold_genes else np.ones(len(y), dtype=bool)
+    # Model B: HGBR with neighbor (warm genes only)
+    print("  Training Model B (HGBR+collab)...")
     model_b = create_model_b(model_cfg.get("model_b", {}))
     model_b.fit(Xb[train_mask], y[train_mask])
     preds_b = model_b.predict(Xb).astype(np.float32)
 
-    # Model C (optional pairwise ranking)
+    # Model C: Pairwise ranking (opt-in)
     model_c = None
+    preds_c = None
     if blend_cfg.get("alpha_c", 0.0) > 0:
         print("  Training Model C (pairwise ranking)...")
         model_c = train_model_c(Xb, y, cell_ids, gene_ids)
+        if model_c is not None:
+            preds_c = predict_model_c(model_c, Xb)
+
+    # Model D: XGBoost (cold-safe, if available)
+    model_d = None
+    preds_d = None
+    alpha_d = blend_cfg.get("alpha_d", 0.0)
+    if alpha_d > 0 and HAS_XGBOOST:
+        print("  Training Model D (XGBoost)...")
+        model_d = create_model_d(model_cfg.get("model_d", {}))
+        if model_d is not None:
+            model_d.fit(Xa, y)
+            preds_d = model_d.predict(Xa).astype(np.float32)
+
+    # Model E: LightGBM Regressor (cold-safe, if available)
+    model_e = None
+    preds_e = None
+    alpha_e = blend_cfg.get("alpha_e", 0.0)
+    if alpha_e > 0 and HAS_LIGHTGBM:
+        print("  Training Model E (LightGBM)...")
+        model_e = create_model_e(model_cfg.get("model_e", {}))
+        if model_e is not None:
+            model_e.fit(Xa, y)
+            preds_e = model_e.predict(Xa).astype(np.float32)
 
     # Blend
     alpha_a = blend_cfg.get("alpha_a", 0.5)
     alpha_b = blend_cfg.get("alpha_b", 0.5)
     alpha_c = blend_cfg.get("alpha_c", 0.0)
 
-    preds_c_arr = predict_model_c(model_c, Xb) if model_c else None
+    weights_str = f"α_A={alpha_a}, α_B={alpha_b}, α_C={alpha_c}"
+    if HAS_XGBOOST and alpha_d > 0:
+        weights_str += f", α_D={alpha_d}"
+    if HAS_LIGHTGBM and alpha_e > 0:
+        weights_str += f", α_E={alpha_e}"
+    print(f"  Blending ranks: {weights_str}")
 
-    print(f"  Blending ranks: α_A={alpha_a}, α_B={alpha_b}, α_C={alpha_c}")
-    blended = blend_ranks(
-        preds_a, preds_b, cell_ids,
-        alpha_a, alpha_b, alpha_c, preds_c_arr,
+    blended = blend_ranks_multi(
+        cell_ids,
         cold_mask=cold_mask,
+        models=[
+            (preds_a, alpha_a, True),    # always cold-safe
+            (preds_b, alpha_b, False),   # warm only
+            (preds_c, alpha_c, True) if preds_c is not None else None,
+            (preds_d, alpha_d, True) if preds_d is not None else None,
+            (preds_e, alpha_e, True) if preds_e is not None else None,
+        ],
     )
 
-    # Calibration
+    # Calibration (label-leakage-free: only use blended prediction features)
     print("  Fitting RMSE calibration...")
-    gene_bl = X.get("g5_gene_baseline", pd.Series(np.zeros(len(X))))
-    cell_bl = X.get("g5_cell_bias", pd.Series(np.zeros(len(X))))
-    cal = calibrate_rmse(
-        blended, y,
-        gene_baselines=gene_bl.to_numpy(dtype=np.float32) if isinstance(gene_bl, pd.Series) else gene_bl,
-        cell_biases=cell_bl.to_numpy(dtype=np.float32) if isinstance(cell_bl, pd.Series) else cell_bl,
-    )
+    cal = calibrate_rmse(blended, y)  # no gene_baselines/cell_biases to avoid leakage
 
     return {
         "model_a": model_a,
         "model_b": model_b,
         "model_c": model_c,
+        "model_d": model_d,
+        "model_e": model_e,
         "blend_alpha_a": alpha_a,
         "blend_alpha_b": alpha_b,
         "blend_alpha_c": alpha_c,
+        "blend_alpha_d": alpha_d,
+        "blend_alpha_e": alpha_e,
         "calibration": cal,
         "cold_genes": cold_genes,
     }
@@ -390,28 +524,42 @@ def predict_all(
     cold_mask = np.array([g in models["cold_genes"] for g in gene_ids])
 
     Xa = prepare_features_a(X)
-    preds_a = models["model_a"].predict(Xa).astype(np.float32)
-
     Xb = prepare_features_b(X)
+
+    preds_a = models["model_a"].predict(Xa).astype(np.float32)
     preds_b = models["model_b"].predict(Xb).astype(np.float32)
 
     preds_c = None
     if models.get("model_c") is not None:
         preds_c = predict_model_c(models["model_c"], Xb)
 
-    blended = blend_ranks(
-        preds_a, preds_b, cell_ids,
-        models["blend_alpha_a"], models["blend_alpha_b"],
-        models["blend_alpha_c"], preds_c,
+    preds_d = None
+    if models.get("model_d") is not None and HAS_XGBOOST:
+        preds_d = models["model_d"].predict(Xa).astype(np.float32)
+
+    preds_e = None
+    if models.get("model_e") is not None and HAS_LIGHTGBM:
+        preds_e = models["model_e"].predict(Xa).astype(np.float32)
+
+    blended = blend_ranks_multi(
+        cell_ids,
         cold_mask=cold_mask,
+        models=[
+            (preds_a, models.get("blend_alpha_a", 0.5), True),
+            (preds_b, models.get("blend_alpha_b", 0.5), False),
+            (preds_c, models.get("blend_alpha_c", 0.0), True) if preds_c is not None else None,
+            (preds_d, models.get("blend_alpha_d", 0.0), True) if preds_d is not None else None,
+            (preds_e, models.get("blend_alpha_e", 0.0), True) if preds_e is not None else None,
+        ],
     )
 
-    # Calibration
-    gene_bl = X.get("g5_gene_baseline", None)
-    cell_bl = X.get("g5_cell_bias", None)
-    if gene_bl is not None:
-        gene_bl = gene_bl.to_numpy(dtype=np.float32) if isinstance(gene_bl, pd.Series) else gene_bl
-    if cell_bl is not None:
-        cell_bl = cell_bl.to_numpy(dtype=np.float32) if isinstance(cell_bl, pd.Series) else cell_bl
+    # Calibration (label-leakage-free)
+    final = apply_calibration(models["calibration"], blended)
 
-    final = apply_calib
+    # Add deterministic jitter to avoid ties
+    if add_jitter:
+        rng = np.random.RandomState(42)
+        jitter = rng.rand(len(final)).astype(np.float32) * 1e-6
+        final += jitter
+
+    return final.astype(np.float32)
