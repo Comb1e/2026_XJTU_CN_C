@@ -1,0 +1,2 @@
+Abstract
+Although it is well described that mitochondria are at the epicentre of the energy demands of a cell, it is becoming important to consider how each cell tailors its mitochondrial composition and functions to suit its particular needs beyond ATP production. Here we provide insight into mitochondrial heterogeneity throughout development as well as in tissues with specific energy demands and discuss how mitochondrial malleability contributes to cell fate determination and tissue remodelling.

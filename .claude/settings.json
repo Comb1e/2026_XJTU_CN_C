@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(.env*)",
+      "Write(.env*)",
+      "Edit(production-config/**)",
+      "Write(production-config/**)",
+      "Edit(数据文件/**)",
+      "Write(数据文件/**)",
+      "Edit(C.docx)",
+      "Write(C.docx)"
+    ]
+  }
+}

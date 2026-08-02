@@ -1,0 +1,1141 @@
+cell_line_id,CellLineName,StrippedCellLineName,OncotreeLineage,OncotreePrimaryDisease,OncotreeSubtype,CCLEName
+ACH-000001,NIH:OVCAR-3,NIHOVCAR3,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,High-Grade Serous Ovarian Cancer,NIHOVCAR3_OVARY
+ACH-000004,HEL,HEL,Myeloid,Acute Myeloid Leukemia,"AML, NOS",HEL_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000005,HEL 92.1.7,HEL9217,Myeloid,Acute Myeloid Leukemia,Acute Myeloid Leukemia,HEL9217_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000007,LS513,LS513,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,LS513_LARGE_INTESTINE
+ACH-000009,C2BBe1,C2BBE1,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,C2BBE1_LARGE_INTESTINE
+ACH-000011,253J,253J,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,253J_URINARY_TRACT
+ACH-000012,HCC-827,HCC827,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,HCC827_LUNG
+ACH-000013,ONCO-DG-1,ONCODG1,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,High-Grade Serous Ovarian Cancer,ONCODG1_OVARY
+ACH-000014,Hs 294T,HS294T,Skin,Melanoma,Melanoma,HS294T_SKIN
+ACH-000015,NCI-H1581,NCIH1581,Lung,Non-Small Cell Lung Cancer,Large Cell Lung Carcinoma,NCIH1581_LUNG
+ACH-000017,SK-BR-3,SKBR3,Breast,Invasive Breast Carcinoma,Invasive Breast Carcinoma,SKBR3_BREAST
+ACH-000018,T24,T24,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,T24_URINARY_TRACT
+ACH-000019,MCF-7,MCF7,Breast,Invasive Breast Carcinoma,Invasive Breast Carcinoma,MCF7_BREAST
+ACH-000021,NCI-H1693,NCIH1693,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH1693_LUNG
+ACH-000022,PA-TU-8988S,PATU8988S,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,PATU8988S_PANCREAS
+ACH-000023,PA-TU-8988T,PATU8988T,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,PATU8988T_PANCREAS
+ACH-000024,OPM-2,OPM2,Lymphoid,Mature B-Cell Neoplasms,Plasma Cell Myeloma,OPM2_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000025,CH-157MN,CH157MN,CNS/Brain,Meningothelial Tumor,Meningioma,CH157MN_CENTRAL_NERVOUS_SYSTEM
+ACH-000026,253J-BV,253JBV,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,253JBV_URINARY_TRACT
+ACH-000028,KPL-1,KPL1,Breast,Invasive Breast Carcinoma,Invasive Breast Carcinoma,KPL1_BREAST
+ACH-000029,HCC-827-GR5,HCC827GR5,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,HCC827GR5_LUNG
+ACH-000030,PC-14,PC14,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,PC14_LUNG
+ACH-000035,NCI-H1650,NCIH1650,Lung,Non-Small Cell Lung Cancer,Non-Small Cell Lung Cancer,NCIH1650_LUNG
+ACH-000036,U343,U343,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",U343_CENTRAL_NERVOUS_SYSTEM
+ACH-000037,S-117,S117,Soft Tissue,"Sarcoma, NOS","Sarcoma, NOS",S117_THYROID
+ACH-000039,SK-N-MC,SKNMC,Bone,Ewing Sarcoma,Ewing Sarcoma,SKNMC_BONE
+ACH-000040,U-118 MG,U118MG,CNS/Brain,Adult-Type Diffuse Glioma,"Astrocytoma, IDH-Mutant",U118MG_CENTRAL_NERVOUS_SYSTEM
+ACH-000041,RD-ES,RDES,Bone,Ewing Sarcoma,Ewing Sarcoma,RDES_BONE
+ACH-000042,Panc 02.03,PANC0203,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,PANC0203_PANCREAS
+ACH-000045,MV4-11,MV411,Myeloid,Acute Myeloid Leukemia,Acute Myeloid Leukemia,MV411_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000048,TOV-112D,TOV112D,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Endometrioid Ovarian Cancer,TOV112D_OVARY
+ACH-000052,A-673,A673,Bone,Ewing Sarcoma,Ewing Sarcoma,A673_BONE
+ACH-000053,KARPAS-299,KARPAS299,Lymphoid,Mature T and NK Neoplasms,Anaplastic Large-Cell Lymphoma ALK Positive,KARPAS299_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000054,HT-1080,HT1080,Soft Tissue,Fibrosarcoma,Fibrosarcoma,HT1080_SOFT_TISSUE
+ACH-000055,D283 Med,D283MED,CNS/Brain,Embryonal Tumor,"Medulloblastoma, NOS",D283MED_CENTRAL_NERVOUS_SYSTEM
+ACH-000060,Panc 10.05,PANC1005,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,PANC1005_PANCREAS
+ACH-000067,Hs 683,HS683,CNS/Brain,Adult-Type Diffuse Glioma,Adult-Type Diffuse Glioma,HS683_CENTRAL_NERVOUS_SYSTEM
+ACH-000070,697,697,Lymphoid,B-Cell Acute Lymphoblastic Leukemia,B-Cell Acute Lymphoblastic Leukemia,697_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000074,KU812,KU812,Myeloid,Myeloproliferative Neoplasms,"Chronic Myeloid Leukemia, BCR-ABL1+",KU812_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000075,U-87 MG,U87MG,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",U87MG_CENTRAL_NERVOUS_SYSTEM
+ACH-000076,NCO2,NCO2,Myeloid,Myeloproliferative Neoplasms,"Chronic Myeloid Leukemia, BCR-ABL1+",NCO2_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000077,MJ,MJ,Lymphoid,Non-Hodgkin Lymphoma,Mature T and NK Neoplasms,MJ_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000078,MHH-NB-11,MHHNB11,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,MHHNB11_AUTONOMIC_GANGLIA
+ACH-000082,"G-292, clone A141B1",G292CLONEA141B1,Bone,Osteosarcoma,Osteosarcoma,G292CLONEA141B1_BONE
+ACH-000085,T3M-4,T3M4,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,T3M4_PANCREAS
+ACH-000086,ACC-MESO-1,ACCMESO1,Pleura,Pleural Mesothelioma,"Pleural Mesothelioma, Epithelioid Type",ACCMESO1_PLEURA
+ACH-000087,SK-ES-1,SKES1,Bone,Ewing Sarcoma,Ewing Sarcoma,SKES1_BONE
+ACH-000090,PC-3,PC3,Prostate,Prostate Adenocarcinoma,Prostate Adenocarcinoma,PC3_PROSTATE
+ACH-000092,NCI-H2452,NCIH2452,Pleura,Pleural Mesothelioma,"Pleural Mesothelioma, Biphasic Type",NCIH2452_PLEURA
+ACH-000093,Panc 05.04,PANC0504,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,PANC0504_PANCREAS
+ACH-000094,HPAF-II,HPAFII,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,HPAFII_PANCREAS
+ACH-000095,D341 Med,D341MED,CNS/Brain,Embryonal Tumor,"Medulloblastoma, Group 3",D341MED_CENTRAL_NERVOUS_SYSTEM
+ACH-000096,G-401,G401,Kidney,Rhabdoid Cancer,Rhabdoid Cancer,G401_SOFT_TISSUE
+ACH-000097,ZR-75-1,ZR751,Breast,Invasive Breast Carcinoma,Breast Invasive Ductal Carcinoma,ZR751_BREAST
+ACH-000098,GAMG,GAMG,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",GAMG_CENTRAL_NERVOUS_SYSTEM
+ACH-000099,SIMA,SIMA,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,SIMA_AUTONOMIC_GANGLIA
+ACH-000100,RH-41,RH41,Soft Tissue,Rhabdomyosarcoma,Alveolar Rhabdomyosarcoma,RH41_SOFT_TISSUE
+ACH-000101,KE-37,KE37,Lymphoid,T-Lymphoblastic Leukemia/Lymphoma,T-Cell Acute Lymphoblastic Leukemia,KE37_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000103,Caov-4,CAOV4,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,High-Grade Serous Ovarian Cancer,CAOV4_OVARY
+ACH-000106,JVM-2,JVM2,Lymphoid,Mature B-Cell Neoplasms,Mantle Cell Lymphoma,JVM2_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000108,KP-3,KP3,Pancreas,Adenosquamous Carcinoma of the Pancreas,Adenosquamous Carcinoma of the Pancreas,KP3_PANCREAS
+ACH-000111,HCC1187,HCC1187,Breast,Invasive Breast Carcinoma,Breast Invasive Ductal Carcinoma,HCC1187_BREAST
+ACH-000113,OCI-AML2,OCIAML2,Myeloid,Acute Myeloid Leukemia,Acute Myeloid Leukemia,OCIAML2_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000114,SU.86.86,SU8686,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,SU8686_PANCREAS
+ACH-000115,VCaP,VCAP,Prostate,Prostate Adenocarcinoma,Prostate Adenocarcinoma,VCAP_PROSTATE
+ACH-000116,OAW28,OAW28,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,High-Grade Serous Ovarian Cancer,OAW28_OVARY
+ACH-000118,HUP-T3,HUPT3,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,HUPT3_PANCREAS
+ACH-000120,CHP-212,CHP212,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,CHP212_AUTONOMIC_GANGLIA
+ACH-000123,COV434,COV434,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Small Cell Carcinoma of the Ovary,COV434_OVARY
+ACH-000124,OCI-LY-19,OCILY19,Lymphoid,Mature B-Cell Neoplasms,"Diffuse Large B-Cell Lymphoma, NOS",OCILY19_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000127,SLR 20,SLR20,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,SLR20_KIDNEY
+ACH-000128,LN-319,LN319,CNS/Brain,Adult-Type Diffuse Glioma,"Astrocytoma, IDH-Mutant",LN319_CENTRAL_NERVOUS_SYSTEM
+ACH-000132,JHOS-2,JHOS2,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,High-Grade Serous Ovarian Cancer,JHOS2_OVARY
+ACH-000133,Hs 729,HS729,Fibroblast,Non-Cancerous,Fibroblast,HS729_SOFT_TISSUE
+ACH-000137,8-MG-BA,8MGBA,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",8MGBA_CENTRAL_NERVOUS_SYSTEM
+ACH-000138,CFPAC-1,CFPAC1,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,CFPAC1_PANCREAS
+ACH-000139,Panc 03.27,PANC0327,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,PANC0327_PANCREAS
+ACH-000141,SNU-308,SNU308,Biliary Tract,Intracholecystic Papillary Neoplasm,"Gallbladder Adenocarcinoma, NOS",SNU308_BILIARY_TRACT
+ACH-000142,CAL-29,CAL29,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,CAL29_URINARY_TRACT
+ACH-000143,HCC2429,HCC2429,Lung,Non-Small Cell Lung Cancer,NUT Carcinoma of the Lung,HCC2429_LUNG
+ACH-000144,RERF-GC-1B,RERFGC1B,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Stomach Adenocarcinoma,RERFGC1B_STOMACH
+ACH-000145,SK-LMS-1,SKLMS1,Soft Tissue,Leiomyosarcoma,Leiomyosarcoma,SKLMS1_SOFT_TISSUE
+ACH-000146,THP-1,THP1,Myeloid,Acute Myeloid Leukemia,Acute Myeloid Leukemia,THP1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000147,T-47D,T47D,Breast,Invasive Breast Carcinoma,Breast Invasive Ductal Carcinoma,T47D_BREAST
+ACH-000148,Hs 578T,HS578T,Breast,Invasive Breast Carcinoma,"Breast Invasive Carcinoma, NOS",HS578T_BREAST
+ACH-000149,SK-N-SH,SKNSH,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,SKNSH_AUTONOMIC_GANGLIA
+ACH-000151,JM1,JM1,Lymphoid,B-Cell Acute Lymphoblastic Leukemia,B-Cell Acute Lymphoblastic Leukemia,JM1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000152,M059K,M059K,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",M059K_CENTRAL_NERVOUS_SYSTEM
+ACH-000153,NCI-H2052,NCIH2052,Pleura,Pleural Mesothelioma,"Pleural Mesothelioma, Sarcomatoid Type",NCIH2052_PLEURA
+ACH-000155,SW 1990,SW1990,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,SW1990_PANCREAS
+ACH-000159,OS-RC-2,OSRC2,Kidney,Renal Cell Carcinoma,Renal Clear Cell Carcinoma,OSRC2_KIDNEY
+ACH-000160,BT-12,BT12,CNS/Brain,Embryonal Tumor,Atypical Teratoid/Rhabdoid Tumor,BT12_SOFT_TISSUE
+ACH-000161,COR-L105,CORL105,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,CORL105_LUNG
+ACH-000163,SW579,SW579,Head and Neck,Head and Neck Squamous Cell Carcinoma,Head and Neck Squamous Cell Carcinoma,SW579_THYROID
+ACH-000164,PANC-1,PANC1,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,PANC1_PANCREAS
+ACH-000167,KE-97,KE97,Lymphoid,Mature B-Cell Neoplasms,Plasma Cell Myeloma,KE97_STOMACH
+ACH-000168,NOMO-1,NOMO1,Myeloid,Acute Myeloid Leukemia,Acute Monoblastic/Monocytic Leukemia,NOMO1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000169,RD,RD,Soft Tissue,Rhabdomyosarcoma,Embryonal Rhabdomyosarcoma,RD_SOFT_TISSUE
+ACH-000172,TM-87,TM87,Soft Tissue,Rhabdoid Cancer,Extrarenal Rhabdoid Cancer,TM87_SOFT_TISSUE
+ACH-000174,CAL-62,CAL62,Thyroid,Anaplastic Thyroid Cancer,Anaplastic Thyroid Cancer,CAL62_THYROID
+ACH-000176,LOU-NH91,LOUNH91,Lung,Non-Small Cell Lung Cancer,Lung Squamous Cell Carcinoma,LOUNH91_LUNG
+ACH-000178,Hs 766T,HS766T,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,HS766T_PANCREAS
+ACH-000181,SCC-9,SCC9,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,SCC9_UPPER_AERODIGESTIVE_TRACT
+ACH-000182,SNU-869,SNU869,Ampulla of Vater,Ampullary Carcinoma,Ampullary Carcinoma,SNU869_BILIARY_TRACT
+ACH-000183,L-363,L363,Lymphoid,Mature B-Cell Neoplasms,Plasma Cell Myeloma,L363_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000187,COR-L311,CORL311,Lung,Lung Neuroendocrine Tumor,Small Cell Lung Cancer,CORL311_LUNG
+ACH-000188,SCC-25,SCC25,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,SCC25_UPPER_AERODIGESTIVE_TRACT
+ACH-000189,RCC10RGB,RCC10RGB,Kidney,Renal Cell Carcinoma,Renal Cell Carcinoma,RCC10RGB_KIDNEY
+ACH-000190,HD-MY-Z,HDMYZ,Myeloid,Acute Myeloid Leukemia,Acute Myeloid Leukemia,HDMYZ_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000191,BHT-101,BHT101,Thyroid,Anaplastic Thyroid Cancer,Anaplastic Thyroid Cancer,BHT101_THYROID
+ACH-000192,MFE-280,MFE280,Uterus,Endometrial Carcinoma,Endometrial Carcinoma,MFE280_ENDOMETRIUM
+ACH-000195,Set-2,SET2,Myeloid,Acute Myeloid Leukemia,"AML, NOS",SET2_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000197,TALL-1,TALL1,Lymphoid,T-Lymphoblastic Leukemia/Lymphoma,T-Cell Acute Lymphoblastic Leukemia,TALL1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000198,EOL-1,EOL1,Myeloid,Acute Myeloid Leukemia,Acute Myeloid Leukemia,EOL1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000200,NMC-G1,NMCG1,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",NMCG1_CENTRAL_NERVOUS_SYSTEM
+ACH-000202,COLO-320,COLO320,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,COLO320_LARGE_INTESTINE
+ACH-000203,NH-6,NH6,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,NH6_AUTONOMIC_GANGLIA
+ACH-000204,LP-1,LP1,Lymphoid,Mature B-Cell Neoplasms,Plasma Cell Myeloma,LP1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000206,C8166,C8166,Lymphoid,Non-Cancerous,"Transformed cell line, B lymphoblast",C8166_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000207,Detroit 562,DETROIT562,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oropharynx Squamous Cell Carcinoma,DETROIT562_UPPER_AERODIGESTIVE_TRACT
+ACH-000208,U-178,U178,CNS/Brain,Adult-Type Diffuse Glioma,"Astrocytoma, IDH-Mutant",U178_CENTRAL_NERVOUS_SYSTEM
+ACH-000209,SNU-1079,SNU1079,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Intrahepatic Cholangiocarcinoma,SNU1079_BILIARY_TRACT
+ACH-000210,CADO-ES1,CADOES1,Bone,Ewing Sarcoma,Ewing Sarcoma,CADOES1_BONE
+ACH-000211,Daoy,DAOY,CNS/Brain,Embryonal Tumor,"Medulloblastoma, NOS",DAOY_CENTRAL_NERVOUS_SYSTEM
+ACH-000212,CAL-120,CAL120,Breast,Invasive Breast Carcinoma,Invasive Breast Carcinoma,CAL120_BREAST
+ACH-000213,HUP-T4,HUPT4,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,HUPT4_PANCREAS
+ACH-000215,LN382,LN382,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",LN382_CENTRAL_NERVOUS_SYSTEM
+ACH-000216,JH-EsoAd1,JHESOAD1,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Esophageal Adenocarcinoma,JHESOAD1_OESOPHAGUS
+ACH-000217,JHH-6,JHH6,Liver,Hepatocellular Carcinoma,Hepatocellular Carcinoma,JHH6_LIVER
+ACH-000219,A-375,A375,Skin,Melanoma,Melanoma,A375_SKIN
+ACH-000221,SNU-398,SNU398,Liver,Hepatocellular Carcinoma,Hepatocellular Carcinoma,SNU398_LIVER
+ACH-000222,AsPC-1,ASPC1,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,ASPC1_PANCREAS
+ACH-000223,HCC1937,HCC1937,Breast,Invasive Breast Carcinoma,Breast Invasive Ductal Carcinoma,HCC1937_BREAST
+ACH-000226,SUP-M2,SUPM2,Lymphoid,Mature T and NK Neoplasms,Anaplastic Large-Cell Lymphoma ALK Positive,SUPM2_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000227,KP-N-YN,KPNYN,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,KPNYN_AUTONOMIC_GANGLIA
+ACH-000228,BICR 31,BICR31,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,BICR31_UPPER_AERODIGESTIVE_TRACT
+ACH-000231,KALS-1,KALS1,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",KALS1_CENTRAL_NERVOUS_SYSTEM
+ACH-000232,U-251 MG,U251MG,CNS/Brain,Adult-Type Diffuse Glioma,"Astrocytoma, IDH-Mutant",U251MG_CENTRAL_NERVOUS_SYSTEM
+ACH-000233,DEL,DEL,Lymphoid,Mature T and NK Neoplasms,Anaplastic Large-Cell Lymphoma ALK Positive,DEL_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000234,Caki-2,CAKI2,Kidney,Renal Cell Carcinoma,Papillary Renal Cell Carcinoma,CAKI2_KIDNEY
+ACH-000235,Panc 04.03,PANC0403,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,PANC0403_PANCREAS
+ACH-000237,JHOM-1,JHOM1,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Mucinous Ovarian Cancer,JHOM1_OVARY
+ACH-000238,SCC-4,SCC4,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,SCC4_UPPER_AERODIGESTIVE_TRACT
+ACH-000239,HuG1-N,HUG1N,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Tubular Stomach Adenocarcinoma,HUG1N_STOMACH
+ACH-000242,RT4,RT4,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,RT4_URINARY_TRACT
+ACH-000243,DAN-G,DANG,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,DANG_PANCREAS
+ACH-000244,DK-MG,DKMG,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",DKMG_CENTRAL_NERVOUS_SYSTEM
+ACH-000247,OCUM-1,OCUM1,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Diffuse Type Stomach Adenocarcinoma,OCUM1_STOMACH
+ACH-000248,AU565,AU565,Breast,Invasive Breast Carcinoma,Invasive Breast Carcinoma,AU565_BREAST
+ACH-000249,CL-11,CL11,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,CL11_LARGE_INTESTINE
+ACH-000250,KMRC-20,KMRC20,Kidney,Renal Cell Carcinoma,Renal Clear Cell Carcinoma,KMRC20_KIDNEY
+ACH-000251,NCI-H2887,NCIH2887,Lung,Non-Small Cell Lung Cancer,Non-Small Cell Lung Cancer,NCIH2887_LUNG
+ACH-000252,LS1034,LS1034,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,LS1034_LARGE_INTESTINE
+ACH-000253,COLO 201,COLO201,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,COLO201_LARGE_INTESTINE
+ACH-000255,LMSU,LMSU,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Stomach Adenocarcinoma,LMSU_STOMACH
+ACH-000256,COV318,COV318,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,High-Grade Serous Ovarian Cancer,COV318_OVARY
+ACH-000257,COR-L279,CORL279,Lung,Lung Neuroendocrine Tumor,Small Cell Lung Cancer,CORL279_LUNG
+ACH-000258,Du4475,DU4475,Breast,Invasive Breast Carcinoma,Invasive Breast Carcinoma,DU4475_BREAST
+ACH-000259,KELLY,KELLY,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,KELLY_AUTONOMIC_GANGLIA
+ACH-000260,SK-N-AS,SKNAS,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,SKNAS_AUTONOMIC_GANGLIA
+ACH-000261,RERF-LC-AI,RERFLCAI,Lung,Non-Small Cell Lung Cancer,Lung Squamous Cell Carcinoma,RERFLCAI_LUNG
+ACH-000262,UOK101,UOK101,Kidney,Renal Cell Carcinoma,Renal Clear Cell Carcinoma,UOK101_KIDNEY
+ACH-000263,KASUMI-1,KASUMI1,Myeloid,Acute Myeloid Leukemia,Acute Myeloid Leukemia,KASUMI1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000264,Calu-6,CALU6,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,CALU6_LUNG
+ACH-000265,KP-4,KP4,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,KP4_PANCREAS
+ACH-000266,SNU-213,SNU213,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,SNU213_PANCREAS
+ACH-000268,SNU-245,SNU245,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Extrahepatic Cholangiocarcinoma,SNU245_BILIARY_TRACT
+ACH-000269,AM-38,AM38,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",AM38_CENTRAL_NERVOUS_SYSTEM
+ACH-000271,SU-DHL-10,SUDHL10,Lymphoid,Mature B-Cell Neoplasms,"Diffuse Large B-Cell Lymphoma, NOS",SUDHL10_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000272,SLR 24,SLR24,Kidney,Renal Cell Carcinoma,Renal Clear Cell Carcinoma,SLR24_KIDNEY
+ACH-000273,SF539,SF539,CNS/Brain,Diffuse Glioma,Gliosarcoma,SF539_CENTRAL_NERVOUS_SYSTEM
+ACH-000274,Hs 852.T,HS852T,Skin,Melanoma,Melanoma,HS852T_SKIN
+ACH-000276,HCC38,HCC38,Breast,Invasive Breast Carcinoma,Breast Invasive Ductal Carcinoma,HCC38_BREAST
+ACH-000277,HCC1419,HCC1419,Breast,Invasive Breast Carcinoma,Breast Invasive Ductal Carcinoma,HCC1419_BREAST
+ACH-000278,COV362,COV362,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,High-Grade Serous Ovarian Cancer,COV362_OVARY
+ACH-000279,EWS502,EWS502,Bone,Ewing Sarcoma,Ewing Sarcoma,EWS502_BONE
+ACH-000280,SNU-840,SNU840,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,"Brenner Tumor, Malignant",SNU840_OVARY
+ACH-000281,KP-2,KP2,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,KP2_PANCREAS
+ACH-000286,SNU-1033,SNU1033,Bowel,Colorectal Adenocarcinoma,Rectal Adenocarcinoma,SNU1033_LARGE_INTESTINE
+ACH-000288,BT-549,BT549,Breast,Invasive Breast Carcinoma,"Breast Invasive Carcinoma, NOS",BT549_BREAST
+ACH-000290,NCI-H209,NCIH209,Lung,Lung Neuroendocrine Tumor,Small Cell Lung Cancer,NCIH209_LUNG
+ACH-000291,OV-90,OV90,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Serous Ovarian Cancer,OV90_OVARY
+ACH-000292,NCI-H841,NCIH841,Lung,SMARCA4-deficient undifferentiated tumor,SMARCA4-deficient undifferentiated tumor,NCIH841_LUNG
+ACH-000293,KLE,KLE,Uterus,Endometrial Carcinoma,Endometrial Carcinoma,KLE_ENDOMETRIUM
+ACH-000294,NB-4,NB4,Myeloid,Acute Myeloid Leukemia,Acute Promyelocytic Leukemia,NB4_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000295,EM-2,EM2,Myeloid,Myeloproliferative Neoplasms,"Chronic Myeloid Leukemia, BCR-ABL1+",EM2_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000296,OUMS-23,OUMS23,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,OUMS23_LARGE_INTESTINE
+ACH-000299,HNT-34,HNT34,Myeloid,Acute Myeloid Leukemia,Acute Myeloid Leukemia,HNT34_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000302,SNU-1077,SNU1077,Uterus,Endometrial Carcinoma,Uterine Carcinosarcoma/Uterine Malignant Mixed Mullerian Tumor,SNU1077_ENDOMETRIUM
+ACH-000303,SNU-5,SNU5,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Stomach Adenocarcinoma,SNU5_STOMACH
+ACH-000304,WM-115,WM115,Skin,Melanoma,Melanoma,WM115_SKIN
+ACH-000305,EC-GI-10,ECGI10,Esophagus/Stomach,Esophageal Squamous Cell Carcinoma,Esophageal Squamous Cell Carcinoma,ECGI10_OESOPHAGUS
+ACH-000307,PK-1,PK1,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,PK1_PANCREAS
+ACH-000308,EFO-21,EFO21,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Serous Ovarian Cancer,EFO21_OVARY
+ACH-000310,IMR-32,IMR32,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,IMR32_AUTONOMIC_GANGLIA
+ACH-000311,NCI-H2122,NCIH2122,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH2122_LUNG
+ACH-000312,SK-N-BE(2),SKNBE2,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,SKNBE2_AUTONOMIC_GANGLIA
+ACH-000313,KMRC-3,KMRC3,Kidney,Renal Cell Carcinoma,Renal Clear Cell Carcinoma,KMRC3_KIDNEY
+ACH-000315,KARPAS-422,KARPAS422,Lymphoid,Mature B-Cell Neoplasms,"Diffuse Large B-Cell Lymphoma, NOS",KARPAS422_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000316,SNU-886,SNU886,Liver,Hepatocellular Carcinoma,Hepatocellular Carcinoma,SNU886_LIVER
+ACH-000317,TUHR14TKB,TUHR14TKB,Kidney,Renal Cell Carcinoma,Renal Cell Carcinoma,TUHR14TKB_KIDNEY
+ACH-000318,TE-10,TE10,Esophagus/Stomach,Esophageal Squamous Cell Carcinoma,Esophageal Squamous Cell Carcinoma,TE10_OESOPHAGUS
+ACH-000319,MPP 89,MPP89,Pleura,Pleural Mesothelioma,"Pleural Mesothelioma, Epithelioid Type",MPP89_PLEURA
+ACH-000320,PSN1,PSN1,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,PSN1_PANCREAS
+ACH-000322,HT-144,HT144,Skin,Melanoma,Melanoma,HT144_SKIN
+ACH-000323,42-MG-BA,42MGBA,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",42MGBA_CENTRAL_NERVOUS_SYSTEM
+ACH-000324,JHOC-5,JHOC5,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Clear Cell Ovarian Cancer,JHOC5_OVARY
+ACH-000325,SNU-620,SNU620,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Stomach Adenocarcinoma,SNU620_STOMACH
+ACH-000326,JURL-MK1,JURLMK1,Myeloid,Myeloproliferative Neoplasms,"Chronic Myeloid Leukemia, BCR-ABL1+",JURLMK1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000329,CCF-STTG1,CCFSTTG1,CNS/Brain,Adult-Type Diffuse Glioma,"Astrocytoma, IDH-Mutant",CCFSTTG1_CENTRAL_NERVOUS_SYSTEM
+ACH-000330,EFM-19,EFM19,Breast,Invasive Breast Carcinoma,Breast Invasive Ductal Carcinoma,EFM19_BREAST
+ACH-000331,IST-MES2,ISTMES2,Pleura,Pleural Mesothelioma,"Pleural Mesothelioma, Epithelioid Type",ISTMES2_PLEURA
+ACH-000332,YAPC,YAPC,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,YAPC_PANCREAS
+ACH-000334,DB,DB,Lymphoid,Mature B-Cell Neoplasms,"Diffuse Large B-Cell Lymphoma, NOS",DB_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000335,MSTO-211H,MSTO211H,Pleura,Pleural Mesothelioma,"Pleural Mesothelioma, Biphasic Type",MSTO211H_PLEURA
+ACH-000336,OCI-AML3,OCIAML3,Myeloid,Acute Myeloid Leukemia,Acute Myeloid Leukemia,OCIAML3_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000337,NCI-H3122,NCIH3122,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH3122_LUNG
+ACH-000338,SR-786,SR786,Lymphoid,Mature T and NK Neoplasms,Anaplastic Large-Cell Lymphoma ALK Positive,SR786_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000339,HCC-461,HCC461,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,HCC461_LUNG
+ACH-000341,SK-N-FI,SKNFI,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,SKNFI_AUTONOMIC_GANGLIA
+ACH-000343,NCI-H522,NCIH522,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH522_LUNG
+ACH-000344,SNU-668,SNU668,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Diffuse Type Stomach Adenocarcinoma,SNU668_STOMACH
+ACH-000345,KP-N-RT-BM-1,KPNRTBM1,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,KPNRTBM1_AUTONOMIC_GANGLIA
+ACH-000346,JVM-3,JVM3,Lymphoid,Mature B-Cell Neoplasms,B-Cell Prolymphocytic Leukemia,JVM3_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000348,RPMI-7951,RPMI7951,Skin,Melanoma,Melanoma,RPMI7951_SKIN
+ACH-000350,COLO-678,COLO678,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,COLO678_LARGE_INTESTINE
+ACH-000352,HCC1428,HCC1428,Breast,Invasive Breast Carcinoma,Invasive Breast Carcinoma,HCC1428_BREAST
+ACH-000354,Capan-1,CAPAN1,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,CAPAN1_PANCREAS
+ACH-000355,NCI-H82,NCIH82,Lung,Lung Neuroendocrine Tumor,Small Cell Lung Cancer,NCIH82_LUNG
+ACH-000356,MKN-45,MKN45,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Diffuse Type Stomach Adenocarcinoma,MKN45_STOMACH
+ACH-000359,MG-63,MG63,Bone,Osteosarcoma,Osteosarcoma,MG63_BONE
+ACH-000361,SK-HEP-1,SKHEP1,Liver,Hepatocellular Carcinoma,Hepatocellular Carcinoma,SKHEP1_LIVER
+ACH-000362,MOLM-13,MOLM13,Myeloid,Acute Myeloid Leukemia,Acute Myeloid Leukemia,MOLM13_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000363,SK-MM-2,SKMM2,Lymphoid,Mature B-Cell Neoplasms,Plasma Cell Myeloma,SKMM2_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000364,U-2 OS,U2OS,Bone,Osteosarcoma,Osteosarcoma,U2OS_BONE
+ACH-000365,SU-DHL-4,SUDHL4,Lymphoid,Mature B-Cell Neoplasms,"Diffuse Large B-Cell Lymphoma, NOS",SUDHL4_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000366,SK-N-DZ,SKNDZ,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,SKNDZ_AUTONOMIC_GANGLIA
+ACH-000367,NCI-H226,NCIH226,Pleura,Pleural Mesothelioma,"Pleural Mesothelioma, Epithelioid Type",NCIH226_LUNG
+ACH-000368,SNU-1105,SNU1105,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",SNU1105_CENTRAL_NERVOUS_SYSTEM
+ACH-000370,SNU-626,SNU626,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",SNU626_CENTRAL_NERVOUS_SYSTEM
+ACH-000371,RL,RL,Lymphoid,Mature B-Cell Neoplasms,"Diffuse Large B-Cell Lymphoma, NOS",RL_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000373,SKM-1,SKM1,Myeloid,Acute Myeloid Leukemia,Acute Myeloid Leukemia,SKM1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000374,HCC1143,HCC1143,Breast,Invasive Breast Carcinoma,Breast Invasive Ductal Carcinoma,HCC1143_BREAST
+ACH-000375,G-402,G402,Kidney,Rhabdoid Cancer,Rhabdoid Cancer,G402_SOFT_TISSUE
+ACH-000376,SF-295,SF295,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",SF295_CENTRAL_NERVOUS_SYSTEM
+ACH-000377,SNU-478,SNU478,Ampulla of Vater,Ampullary Carcinoma,Ampullary Carcinoma,SNU478_BILIARY_TRACT
+ACH-000378,NCI-H647,NCIH647,Lung,Non-Small Cell Lung Cancer,Lung Adenosquamous Carcinoma,NCIH647_LUNG
+ACH-000381,T84,T84,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,T84_LARGE_INTESTINE
+ACH-000383,OE33,OE33,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Esophageal Adenocarcinoma,OE33_OESOPHAGUS
+ACH-000385,SK-RC-52,SKRC52,Kidney,Renal Cell Carcinoma,Renal Cell Carcinoma,SKRC52_KIDNEY
+ACH-000387,TF-1,TF1,Myeloid,Acute Myeloid Leukemia,"AML, NOS",TF1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000389,H4,H4,CNS/Brain,Adult-Type Diffuse Glioma,"Astrocytoma, IDH-Mutant",H4_CENTRAL_NERVOUS_SYSTEM
+ACH-000390,LUDLU-1,LUDLU1,Lung,Non-Small Cell Lung Cancer,Lung Squamous Cell Carcinoma,LUDLU1_LUNG
+ACH-000391,MHH-ES-1,MHHES1,Bone,Ewing Sarcoma,Ewing Sarcoma,MHHES1_BONE
+ACH-000393,HLF,HLF,Liver,Hepatocellular Carcinoma,Hepatocellular Carcinoma,HLF_LIVER
+ACH-000395,NCI-H520,NCIH520,Lung,Non-Small Cell Lung Cancer,Lung Squamous Cell Carcinoma,NCIH520_LUNG
+ACH-000396,J82,J82,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,J82_URINARY_TRACT
+ACH-000397,TEN,TEN,Uterus,Endometrial Carcinoma,Uterine Clear Cell Carcinoma,TEN_ENDOMETRIUM
+ACH-000398,RI-1,RI1,Lymphoid,Mature B-Cell Neoplasms,Activated B-cell Type,RI1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000401,COLO-800,COLO800,Skin,Melanoma,Cutaneous Melanoma,COLO800_SKIN
+ACH-000402,BL-70,BL70,Lymphoid,Mature B-Cell Neoplasms,Burkitt Lymphoma,BL70_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000403,NCI-H747,NCIH747,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,NCIH747_LARGE_INTESTINE
+ACH-000404,K029AX,K029AX,Skin,Melanoma,Cutaneous Melanoma,K029AX_SKIN
+ACH-000405,MEC-1,MEC1,Lymphoid,Mature B-Cell Neoplasms,Chronic Lymphocytic Leukemia/Small Lymphocytic Lymphoma,MEC1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000406,U-937,U937,Myeloid,Acute Myeloid Leukemia,Acute Myeloid Leukemia,U937_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000407,SNU-685,SNU685,Uterus,Endometrial Carcinoma,Uterine Carcinosarcoma/Uterine Malignant Mixed Mullerian Tumor,SNU685_ENDOMETRIUM
+ACH-000408,TE-5,TE5,Esophagus/Stomach,Esophageal Squamous Cell Carcinoma,Esophageal Squamous Cell Carcinoma,TE5_OESOPHAGUS
+ACH-000410,Saos-2,SAOS2,Bone,Osteosarcoma,Osteosarcoma,SAOS2_BONE
+ACH-000411,769-P,769P,Kidney,Renal Cell Carcinoma,Renal Clear Cell Carcinoma,769P_KIDNEY
+ACH-000414,NCI-H1944,NCIH1944,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH1944_LUNG
+ACH-000415,BICR 6,BICR6,Head and Neck,Head and Neck Squamous Cell Carcinoma,Hypopharynx Squamous Cell Carcinoma,BICR6_UPPER_AERODIGESTIVE_TRACT
+ACH-000416,NCI-H838,NCIH838,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH838_LUNG
+ACH-000417,Panc 08.13,PANC0813,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,PANC0813_PANCREAS
+ACH-000420,SNU-449,SNU449,Liver,Hepatocellular Carcinoma,Hepatocellular Carcinoma,SNU449_LIVER
+ACH-000421,SW837,SW837,Bowel,Colorectal Adenocarcinoma,Rectal Adenocarcinoma,SW837_LARGE_INTESTINE
+ACH-000422,SNU-475,SNU475,Liver,Hepatocellular Carcinoma,Hepatocellular Carcinoma,SNU475_LIVER
+ACH-000424,TC-71,TC71,Bone,Ewing Sarcoma,Ewing Sarcoma,TC71_BONE
+ACH-000425,UACC-62,UACC62,Skin,Melanoma,Melanoma,UACC62_SKIN
+ACH-000427,NCI-N87,NCIN87,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Tubular Stomach Adenocarcinoma,NCIN87_STOMACH
+ACH-000430,TYK-nu,TYKNU,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,High-Grade Serous Ovarian Cancer,TYKNU_OVARY
+ACH-000431,NCI-H1694,NCIH1694,Lung,Lung Neuroendocrine Tumor,Small Cell Lung Cancer,NCIH1694_LUNG
+ACH-000433,Caki-1,CAKI1,Kidney,Renal Cell Carcinoma,Renal Clear Cell Carcinoma,CAKI1_KIDNEY
+ACH-000434,NCI-H1915,NCIH1915,Lung,Non-Small Cell Lung Cancer,Large Cell Lung Carcinoma,NCIH1915_LUNG
+ACH-000435,EFE-184,EFE184,Uterus,Endometrial Carcinoma,Endometrial Carcinoma,EFE184_ENDOMETRIUM
+ACH-000436,OCI-My7,OCIMY7,Lymphoid,Mature B-Cell Neoplasms,Plasma Cell Myeloma,OCIMY7_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000437,SW 1088,SW1088,CNS/Brain,Adult-Type Diffuse Glioma,"Astrocytoma, IDH-Mutant",SW1088_CENTRAL_NERVOUS_SYSTEM
+ACH-000438,Lu-65,LU65,Lung,Non-Small Cell Lung Cancer,Giant Cell Carcinoma of the Lung,LU65_LUNG
+ACH-000441,SH-4,SH4,Skin,Melanoma,Melanoma,SH4_SKIN
+ACH-000442,RERF-LC-Sq1,RERFLCSQ1,Lung,Non-Small Cell Lung Cancer,Lung Squamous Cell Carcinoma,RERFLCSQ1_LUNG
+ACH-000444,LU99,LU99,Lung,Non-Small Cell Lung Cancer,Giant Cell Carcinoma of the Lung,LU99_LUNG
+ACH-000445,KNS-60,KNS60,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",KNS60_CENTRAL_NERVOUS_SYSTEM
+ACH-000446,KP-N-SI9s,KPNSI9S,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,KPNSI9S_AUTONOMIC_GANGLIA
+ACH-000448,NCI-H1666,NCIH1666,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH1666_LUNG
+ACH-000450,MEL-HO,MELHO,Skin,Melanoma,Melanoma,MELHO_SKIN
+ACH-000452,TE-8,TE8,Esophagus/Stomach,Esophageal Squamous Cell Carcinoma,Esophageal Squamous Cell Carcinoma,TE8_OESOPHAGUS
+ACH-000454,HCC-95,HCC95,Lung,Non-Small Cell Lung Cancer,Lung Squamous Cell Carcinoma,HCC95_LUNG
+ACH-000455,LN-428,LN428,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",LN428_CENTRAL_NERVOUS_SYSTEM
+ACH-000456,B-CPAP,BCPAP,Thyroid,Poorly Differentiated Thyroid Cancer,Poorly Differentiated Thyroid Cancer,BCPAP_THYROID
+ACH-000458,CJM,CJM,Skin,Melanoma,Melanoma,CJM_SKIN
+ACH-000459,TUHR10TKB,TUHR10TKB,Kidney,Renal Cell Carcinoma,Renal Clear Cell Carcinoma,TUHR10TKB_KIDNEY
+ACH-000460,SNU-8,SNU8,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Serous Ovarian Cancer,SNU8_OVARY
+ACH-000461,SNU-1196,SNU1196,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Extrahepatic Cholangiocarcinoma,SNU1196_BILIARY_TRACT
+ACH-000463,NCI-H460,NCIH460,Lung,Non-Small Cell Lung Cancer,Large Cell Lung Carcinoma,NCIH460_LUNG
+ACH-000464,CAS-1,CAS1,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",CAS1_CENTRAL_NERVOUS_SYSTEM
+ACH-000466,SNU-216,SNU216,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Tubular Stomach Adenocarcinoma,SNU216_STOMACH
+ACH-000467,HCC-56,HCC56,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,HCC56_LARGE_INTESTINE
+ACH-000468,PK-45H,PK45H,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,PK45H_PANCREAS
+ACH-000469,YH-13,YH13,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",YH13_CENTRAL_NERVOUS_SYSTEM
+ACH-000470,SW1463,SW1463,Bowel,Colorectal Adenocarcinoma,Rectal Adenocarcinoma,SW1463_LARGE_INTESTINE
+ACH-000471,Li-7,LI7,Liver,Hepatocellular Carcinoma,Hepatocellular Carcinoma,LI7_LIVER
+ACH-000472,HSC-2,HSC2,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,HSC2_UPPER_AERODIGESTIVE_TRACT
+ACH-000473,RT-112,RT112,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,RT112_URINARY_TRACT
+ACH-000475,huH-1,HUH1,Liver,Hepatocellular Carcinoma,Hepatocellular Carcinoma,HUH1_LIVER
+ACH-000476,JHH-4,JHH4,Liver,Hepatocellular Carcinoma,Hepatocellular Carcinoma,JHH4_LIVER
+ACH-000477,Malme-3M,MALME3M,Skin,Melanoma,Melanoma,MALME3M_SKIN
+ACH-000478,SNU-387,SNU387,Liver,Hepatocellular Carcinoma,Hepatocellular Carcinoma,SNU387_LIVER
+ACH-000479,KNS-81,KNS81,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",KNS81_CENTRAL_NERVOUS_SYSTEM
+ACH-000480,HuH-7,HUH7,Liver,Hepatocellular Carcinoma,Hepatocellular Carcinoma,HUH7_LIVER
+ACH-000481,NCI-H2170,NCIH2170,Lung,Non-Small Cell Lung Cancer,Lung Squamous Cell Carcinoma,NCIH2170_LUNG
+ACH-000483,SNU-182,SNU182,Liver,Hepatocellular Carcinoma,Hepatocellular Carcinoma,SNU182_LIVER
+ACH-000484,VMRC-RCW,VMRCRCW,Kidney,Renal Cell Carcinoma,Renal Cell Carcinoma,VMRCRCW_KIDNEY
+ACH-000485,GSU,GSU,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Stomach Adenocarcinoma,GSU_STOMACH
+ACH-000486,KU-19-19,KU1919,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,KU1919_URINARY_TRACT
+ACH-000487,F-36P,F36P,Myeloid,Acute Myeloid Leukemia,"AML, NOS",F36P_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000488,TE-11,TE11,Esophagus/Stomach,Esophageal Squamous Cell Carcinoma,Esophageal Squamous Cell Carcinoma,TE11_OESOPHAGUS
+ACH-000489,SW1116,SW1116,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,SW1116_LARGE_INTESTINE
+ACH-000490,SF767,SF767,Cervix,Cervical Squamous Cell Carcinoma,Cervical Squamous Cell Carcinoma,SF767_CENTRAL_NERVOUS_SYSTEM
+ACH-000491,NCI-H716,NCIH716,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,NCIH716_LARGE_INTESTINE
+ACH-000493,SNU-423,SNU423,Liver,Hepatocellular Carcinoma,Hepatocellular Carcinoma,SNU423_LIVER
+ACH-000495,TUHR4TKB,TUHR4TKB,Kidney,Renal Cell Carcinoma,Renal Cell Carcinoma,TUHR4TKB_KIDNEY
+ACH-000496,NCI-H1792,NCIH1792,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH1792_LUNG
+ACH-000498,KO52,KO52,Myeloid,Acute Myeloid Leukemia,Acute Myeloid Leukemia,KO52_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000499,EW8,EW8,Bone,Ewing Sarcoma,Ewing Sarcoma,EW8_BONE
+ACH-000500,SNU-46,SNU46,Head and Neck,Head and Neck Squamous Cell Carcinoma,Larynx Squamous Cell Carcinoma,SNU46_UPPER_AERODIGESTIVE_TRACT
+ACH-000501,LS123,LS123,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,LS123_LARGE_INTESTINE
+ACH-000502,TCC-PAN2,TCCPAN2,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,TCCPAN2_PANCREAS
+ACH-000503,BICR 16,BICR16,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,BICR16_UPPER_AERODIGESTIVE_TRACT
+ACH-000504,SNB75,SNB75,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",SNB75_CENTRAL_NERVOUS_SYSTEM
+ACH-000505,RKN,RKN,Soft Tissue,Leiomyosarcoma,Leiomyosarcoma,RKN_SOFT_TISSUE
+ACH-000507,KE-39,KE39,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Stomach Adenocarcinoma,KE39_STOMACH
+ACH-000510,NCI-H1299,NCIH1299,Lung,Non-Small Cell Lung Cancer,Large Cell Lung Carcinoma,NCIH1299_LUNG
+ACH-000511,Calu-1,CALU1,Lung,Non-Small Cell Lung Cancer,Lung Squamous Cell Carcinoma,CALU1_LUNG
+ACH-000512,INA6,INA6,Lymphoid,Mature B-Cell Neoplasms,Plasma Cell Myeloma,INA6_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000514,NCI-H1092,NCIH1092,Lung,Lung Neuroendocrine Tumor,Small Cell Lung Cancer,NCIH1092_LUNG
+ACH-000515,HCC-33,HCC33,Lung,Lung Neuroendocrine Tumor,Small Cell Lung Cancer,HCC33_LUNG
+ACH-000516,CAL-78,CAL78,Bone,Chondrosarcoma,Dedifferentiated Chondrosarcoma,CAL78_BONE
+ACH-000517,SNU-410,SNU410,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,SNU410_PANCREAS
+ACH-000518,CAL-33,CAL33,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,CAL33_UPPER_AERODIGESTIVE_TRACT
+ACH-000519,PEER,PEER,Lymphoid,T-Lymphoblastic Leukemia/Lymphoma,T-Cell Acute Lymphoblastic Leukemia,PEER_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000520,59M,59M,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,High-Grade Serous Ovarian Cancer,59M_OVARY
+ACH-000521,NCI-H2030,NCIH2030,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH2030_LUNG
+ACH-000522,UM-UC-3,UMUC3,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,UMUC3_URINARY_TRACT
+ACH-000524,KURAMOCHI,KURAMOCHI,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,High-Grade Serous Ovarian Cancer,KURAMOCHI_OVARY
+ACH-000525,NCI-H2171,NCIH2171,Lung,Lung Neuroendocrine Tumor,Small Cell Lung Cancer,NCIH2171_LUNG
+ACH-000527,OVISE,OVISE,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Clear Cell Ovarian Cancer,OVISE_OVARY
+ACH-000528,ABC-1,ABC1,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,ABC1_LUNG
+ACH-000532,SNU-61,SNU61,Bowel,Colorectal Adenocarcinoma,Rectal Adenocarcinoma,SNU61_LARGE_INTESTINE
+ACH-000533,NCI-H2004 RT,NCIH2004RT,Kidney,Rhabdoid Cancer,Rhabdoid Cancer,NCIH2004RT_SOFT_TISSUE
+ACH-000535,BxPC-3,BXPC3,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,BXPC3_PANCREAS
+ACH-000537,SNU-761,SNU761,Liver,Hepatocellular Carcinoma,Hepatocellular Carcinoma,SNU761_LIVER
+ACH-000541,KMS-34,KMS34,Lymphoid,Mature B-Cell Neoplasms,Plasma Cell Myeloma,KMS34_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000542,Hey-A8,HEYA8,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,High-Grade Serous Ovarian Cancer,HEYA8_OVARY
+ACH-000544,OE21,OE21,Esophagus/Stomach,Esophageal Squamous Cell Carcinoma,Esophageal Squamous Cell Carcinoma,OE21_OESOPHAGUS
+ACH-000545,VM-CUB1,VMCUB1,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,VMCUB1_URINARY_TRACT
+ACH-000546,HSC-4,HSC4,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,HSC4_UPPER_AERODIGESTIVE_TRACT
+ACH-000547,HT-1197,HT1197,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,HT1197_URINARY_TRACT
+ACH-000548,BHY,BHY,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,BHY_UPPER_AERODIGESTIVE_TRACT
+ACH-000549,SNU-1076,SNU1076,Head and Neck,Head and Neck Squamous Cell Carcinoma,Larynx Squamous Cell Carcinoma,SNU1076_UPPER_AERODIGESTIVE_TRACT
+ACH-000550,IGR-39,IGR39,Skin,Melanoma,Melanoma,IGR39_SKIN
+ACH-000551,K-562,K562,Myeloid,Myeloproliferative Neoplasms,"Chronic Myeloid Leukemia, BCR-ABL1+",K562_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000552,HT-29,HT29,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,HT29_LARGE_INTESTINE
+ACH-000554,UACC-893,UACC893,Breast,Invasive Breast Carcinoma,Breast Invasive Lobular Carcinoma,UACC893_BREAST
+ACH-000556,SIHA,SIHA,Cervix,Cervical Squamous Cell Carcinoma,Cervical Squamous Cell Carcinoma,SIHA_CERVIX
+ACH-000557,AML-193,AML193,Myeloid,Acute Myeloid Leukemia,AML with Myelodysplasia-Related Changes,AML193_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000558,A-172,A172,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",A172_CENTRAL_NERVOUS_SYSTEM
+ACH-000559,NCI-H1836,NCIH1836,Lung,Lung Neuroendocrine Tumor,Small Cell Lung Cancer,NCIH1836_LUNG
+ACH-000561,T.T,TDOTT,Esophagus/Stomach,Esophageal Squamous Cell Carcinoma,Esophageal Squamous Cell Carcinoma,TT_OESOPHAGUS
+ACH-000562,HCC-78,HCC78,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,HCC78_LUNG
+ACH-000563,EBC-1,EBC1,Lung,Non-Small Cell Lung Cancer,Lung Squamous Cell Carcinoma,EBC1_LUNG
+ACH-000565,RCM-1,RCM1,Bowel,Colorectal Adenocarcinoma,Rectal Adenocarcinoma,RCM1_LARGE_INTESTINE
+ACH-000567,ST486,ST486,Lymphoid,Mature B-Cell Neoplasms,Burkitt Lymphoma,ST486_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000569,IST-MES1,ISTMES1,Pleura,Pleural Mesothelioma,"Pleural Mesothelioma, Epithelioid Type",ISTMES1_PLEURA
+ACH-000570,YKG1,YKG1,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",YKG1_CENTRAL_NERVOUS_SYSTEM
+ACH-000571,T98G,T98G,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",T98G_CENTRAL_NERVOUS_SYSTEM
+ACH-000573,MDA-MB-436,MDAMB436,Breast,Invasive Breast Carcinoma,"Breast Invasive Carcinoma, NOS",MDAMB436_BREAST
+ACH-000576,KMS-27,KMS27,Lymphoid,Mature B-Cell Neoplasms,Plasma Cell Myeloma,KMS27_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000577,JHH-2,JHH2,Liver,Hepatocellular Carcinoma,Hepatocellular Carcinoma,JHH2_LIVER
+ACH-000579,UACC-257,UACC257,Skin,Melanoma,Melanoma,UACC257_SKIN
+ACH-000580,C32,C32,Skin,Melanoma,Melanoma,C32_SKIN
+ACH-000581,SNU-16,SNU16,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Stomach Adenocarcinoma,SNU16_STOMACH
+ACH-000583,MC116,MC116,Lymphoid,Non-Hodgkin Lymphoma,Mature B-Cell Neoplasms,MC116_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000584,JHOS-4,JHOS4,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,High-Grade Serous Ovarian Cancer,JHOS4_OVARY
+ACH-000585,EPLC-272H,EPLC272H,Lung,Non-Small Cell Lung Cancer,Lung Squamous Cell Carcinoma,EPLC272H_LUNG
+ACH-000587,NCI-H1975,NCIH1975,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH1975_LUNG
+ACH-000588,KMS-26,KMS26,Lymphoid,Mature B-Cell Neoplasms,Plasma Cell Myeloma,KMS26_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000589,NCI-H1437,NCIH1437,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH1437_LUNG
+ACH-000591,LN-235,LN235,CNS/Brain,Adult-Type Diffuse Glioma,"Astrocytoma, IDH-Mutant",LN235_CENTRAL_NERVOUS_SYSTEM
+ACH-000592,TM-31,TM31,CNS/Brain,Adult-Type Diffuse Glioma,"Astrocytoma, IDH-Mutant",TM31_CENTRAL_NERVOUS_SYSTEM
+ACH-000593,BC-3C,BC3C,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,BC3C_URINARY_TRACT
+ACH-000595,LN-229,LN229,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",LN229_CENTRAL_NERVOUS_SYSTEM
+ACH-000596,LCLC-97TM1,LCLC97TM1,Lung,Non-Small Cell Lung Cancer,Large Cell Lung Carcinoma,LCLC97TM1_LUNG
+ACH-000597,TTC-709,TTC709,Soft Tissue,Rhabdoid Cancer,Extrarenal Rhabdoid Cancer,TTC709_SOFT_TISSUE
+ACH-000599,PA-TU-8902,PATU8902,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,PATU8902_PANCREAS
+ACH-000601,MIA PaCa-2,MIAPACA2,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,MIAPACA2_PANCREAS
+ACH-000602,M-07e,M07E,Myeloid,Acute Myeloid Leukemia,Acute Myeloid Leukemia,M07E_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000604,KYO-1,KYO1,Myeloid,Myeloproliferative Neoplasms,"Chronic Myeloid Leukemia, BCR-ABL1+",KYO1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000605,TE-6,TE6,Esophagus/Stomach,Esophageal Squamous Cell Carcinoma,Esophageal Squamous Cell Carcinoma,TE6_OESOPHAGUS
+ACH-000606,PE/CA-PJ34 (clone C12),PECAPJ34CLONEC12,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,PECAPJ34CLONEC12_UPPER_AERODIGESTIVE_TRACT
+ACH-000607,KYM-1,KYM1,Kidney,Rhabdoid Cancer,Rhabdoid Cancer,KYM1_SOFT_TISSUE
+ACH-000608,COV644,COV644,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Mucinous Ovarian Cancer,COV644_OVARY
+ACH-000609,SF126,SF126,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",SF126_CENTRAL_NERVOUS_SYSTEM
+ACH-000614,RVH-421,RVH421,Skin,Melanoma,Melanoma,RVH421_SKIN
+ACH-000616,Hs 746T,HS746T,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Stomach Adenocarcinoma,HS746T_STOMACH
+ACH-000618,SNU-1041,SNU1041,Head and Neck,Head and Neck Squamous Cell Carcinoma,Hypopharynx Squamous Cell Carcinoma,SNU1041_UPPER_AERODIGESTIVE_TRACT
+ACH-000619,PE/CA-PJ15,PECAPJ15,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,PECAPJ15_UPPER_AERODIGESTIVE_TRACT
+ACH-000620,JHH-1,JHH1,Liver,Hepatocellular Carcinoma,Hepatocellular Carcinoma,JHH1_LIVER
+ACH-000621,MDA-MB-157,MDAMB157,Breast,Invasive Breast Carcinoma,Breast Invasive Ductal Carcinoma,MDAMB157_BREAST
+ACH-000622,KNS-42,KNS42,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",KNS42_CENTRAL_NERVOUS_SYSTEM
+ACH-000623,SNU-201,SNU201,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",SNU201_CENTRAL_NERVOUS_SYSTEM
+ACH-000624,HCC1806,HCC1806,Breast,Breast Ductal Carcinoma In Situ,Breast Ductal Carcinoma In Situ,HCC1806_BREAST
+ACH-000627,LCLC-103H,LCLC103H,Lung,Non-Small Cell Lung Cancer,Large Cell Lung Carcinoma,LCLC103H_LUNG
+ACH-000630,YD-8,YD8,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,YD8_UPPER_AERODIGESTIVE_TRACT
+ACH-000631,KS-1,KS1,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",KS1_CENTRAL_NERVOUS_SYSTEM
+ACH-000632,Hs 944.T,HS944T,Skin,Melanoma,Cutaneous Melanoma,HS944T_SKIN
+ACH-000633,FU97,FU97,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Diffuse Type Stomach Adenocarcinoma,FU97_STOMACH
+ACH-000634,LN-340,LN340,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",LN340_CENTRAL_NERVOUS_SYSTEM
+ACH-000637,KYSE-520,KYSE520,Esophagus/Stomach,Esophageal Squamous Cell Carcinoma,Esophageal Squamous Cell Carcinoma,KYSE520_OESOPHAGUS
+ACH-000638,NCI-H441,NCIH441,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH441_LUNG
+ACH-000639,NCI-H211,NCIH211,Lung,Lung Neuroendocrine Tumor,Small Cell Lung Cancer,NCIH211_LUNG
+ACH-000645,JL-1,JL1,Pleura,Pleural Mesothelioma,"Pleural Mesothelioma, Epithelioid Type",JL1_PLEURA
+ACH-000646,OVMANA,OVMANA,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Clear Cell Ovarian Cancer,OVMANA_OVARY
+ACH-000647,TE-1,TE1,Esophagus/Stomach,Esophageal Squamous Cell Carcinoma,Esophageal Squamous Cell Carcinoma,TE1_OESOPHAGUS
+ACH-000648,NCI-H28,NCIH28,Pleura,Pleural Mesothelioma,"Pleural Mesothelioma, Epithelioid Type",NCIH28_PLEURA
+ACH-000649,786-O,786O,Kidney,Renal Cell Carcinoma,Renal Clear Cell Carcinoma,786O_KIDNEY
+ACH-000651,SW 620,SW620,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,SW620_LARGE_INTESTINE
+ACH-000652,SUIT-2,SUIT2,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,SUIT2_PANCREAS
+ACH-000653,JJN-3,JJN3,Lymphoid,Mature B-Cell Neoplasms,Plasma Cell Myeloma,JJN3_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000654,Raji,RAJI,Lymphoid,Non-Hodgkin Lymphoma,Non-Hodgkin Lymphoma,RAJI_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000655,SF268,SF268,CNS/Brain,Adult-Type Diffuse Glioma,"Astrocytoma, IDH-Mutant",SF268_CENTRAL_NERVOUS_SYSTEM
+ACH-000656,SU-DHL-8,SUDHL8,Lymphoid,Mature B-Cell Neoplasms,"Diffuse Large B-Cell Lymphoma, NOS",SUDHL8_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000657,A2780,A2780,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Endometrioid Ovarian Cancer,A2780_OVARY
+ACH-000660,SU-DHL-5,SUDHL5,Lymphoid,Mature B-Cell Neoplasms,"Diffuse Large B-Cell Lymphoma, NOS",SUDHL5_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000661,WM1799,WM1799,Skin,Melanoma,Melanoma,WM1799_SKIN
+ACH-000662,COR-L23,CORL23,Lung,Non-Small Cell Lung Cancer,Large Cell Lung Carcinoma,CORL23_LUNG
+ACH-000663,OVTOKO,OVTOKO,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Clear Cell Ovarian Cancer,OVTOKO_OVARY
+ACH-000664,SU-DHL-1,SUDHL1,Lymphoid,Mature T and NK Neoplasms,Anaplastic Large-Cell Lymphoma ALK Positive,SUDHL1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000665,SK-MES-1,SKMES1,Lung,Non-Small Cell Lung Cancer,Lung Squamous Cell Carcinoma,SKMES1_LUNG
+ACH-000666,NCI-H1355,NCIH1355,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH1355_LUNG
+ACH-000667,HCC-44,HCC44,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,HCC44_LUNG
+ACH-000668,HCC70,HCC70,Breast,Invasive Breast Carcinoma,Breast Invasive Ductal Carcinoma,HCC70_BREAST
+ACH-000671,HuH-6,HUH6,Liver,Hepatoblastoma,Hepatoblastoma,HUH6_LIVER
+ACH-000672,IA-LM,IALM,Lung,Non-Small Cell Lung Cancer,Large Cell Lung Carcinoma,IALM_LUNG
+ACH-000673,LN-443,LN443,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",LN443_CENTRAL_NERVOUS_SYSTEM
+ACH-000676,LN-464,LN464,Skin,Melanoma,Melanoma,LN464_CENTRAL_NERVOUS_SYSTEM
+ACH-000677,SW 1573,SW1573,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,SW1573_LUNG
+ACH-000681,A549,A549,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,A549_LUNG
+ACH-000682,SNU-1066,SNU1066,Head and Neck,Head and Neck Squamous Cell Carcinoma,Larynx Squamous Cell Carcinoma,SNU1066_UPPER_AERODIGESTIVE_TRACT
+ACH-000683,SNU-503,SNU503,Bowel,Colorectal Adenocarcinoma,Rectal Adenocarcinoma,SNU503_LARGE_INTESTINE
+ACH-000684,KMRC-1,KMRC1,Kidney,Renal Cell Carcinoma,Renal Clear Cell Carcinoma,KMRC1_KIDNEY
+ACH-000685,L3.3,L33,Pancreas,Adenosquamous Carcinoma of the Pancreas,Adenosquamous Carcinoma of the Pancreas,L33_PANCREAS
+ACH-000688,OV7,OV7,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Mixed Ovarian Carcinoma,OV7_OVARY
+ACH-000693,KYSE-180,KYSE180,Esophagus/Stomach,Esophageal Squamous Cell Carcinoma,Esophageal Squamous Cell Carcinoma,KYSE180_OESOPHAGUS
+ACH-000694,TE-9,TE9,Esophagus/Stomach,Esophageal Squamous Cell Carcinoma,Esophageal Squamous Cell Carcinoma,TE9_OESOPHAGUS
+ACH-000695,COR-L47,CORL47,Lung,Lung Neuroendocrine Tumor,Small Cell Lung Cancer,CORL47_LUNG
+ACH-000696,OVCAR-8,OVCAR8,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,High-Grade Serous Ovarian Cancer,OVCAR8_OVARY
+ACH-000697,A3/KAW,A3KAW,Lymphoid,Mature B-Cell Neoplasms,"Diffuse Large B-Cell Lymphoma, NOS",A3KAW_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000698,DMS 53,DMS53,Lung,Lung Neuroendocrine Tumor,Small Cell Lung Cancer,DMS53_LUNG
+ACH-000699,HCC1395,HCC1395,Breast,Invasive Breast Carcinoma,Breast Invasive Ductal Carcinoma,HCC1395_BREAST
+ACH-000700,NCI-H2882,NCIH2882,Lung,Non-Small Cell Lung Cancer,Lung Squamous Cell Carcinoma,NCIH2882_LUNG
+ACH-000701,RMUG-S,RMUGS,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Mucinous Ovarian Cancer,RMUGS_OVARY
+ACH-000702,L-1236,L1236,Lymphoid,Hodgkin Lymphoma,Hodgkin Lymphoma,L1236_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000704,OAW42,OAW42,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Serous Ovarian Cancer,OAW42_OVARY
+ACH-000706,EKVX,EKVX,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,EKVX_LUNG
+ACH-000709,KMRC-2,KMRC2,Kidney,Renal Cell Carcinoma,Renal Clear Cell Carcinoma,KMRC2_KIDNEY
+ACH-000711,JIMT-1,JIMT1,Breast,Invasive Breast Carcinoma,Breast Invasive Ductal Carcinoma,JIMT1_BREAST
+ACH-000713,Caov-3,CAOV3,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,High-Grade Serous Ovarian Cancer,CAOV3_OVARY
+ACH-000714,KMS-11,KMS11,Lymphoid,Mature B-Cell Neoplasms,Plasma Cell Myeloma,KMS11_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000716,TT2609-C02,TT2609C02,Thyroid,Well-Differentiated Thyroid Cancer,Follicular Thyroid Cancer,TT2609C02_THYROID
+ACH-000717,COLO-680N,COLO680N,Esophagus/Stomach,Esophageal Squamous Cell Carcinoma,Esophageal Squamous Cell Carcinoma,COLO680N_OESOPHAGUS
+ACH-000718,NCI-H2291,NCIH2291,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH2291_LUNG
+ACH-000719,RMG-I,RMGI,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Clear Cell Ovarian Cancer,RMGI_OVARY
+ACH-000720,TCCSUP,TCCSUP,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,TCCSUP_URINARY_TRACT
+ACH-000721,HMC-1-8,HMC18,Breast,Invasive Breast Carcinoma,Breast Invasive Ductal Carcinoma,HMC18_BREAST
+ACH-000722,SNU-C1,SNUC1,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,SNUC1_LARGE_INTESTINE
+ACH-000724,HT-1376,HT1376,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,HT1376_URINARY_TRACT
+ACH-000725,HCC202,HCC202,Breast,Breast Ductal Carcinoma In Situ,Breast Ductal Carcinoma In Situ,HCC202_BREAST
+ACH-000732,PE/CA-PJ41 (clone D2),PECAPJ41CLONED2,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,PECAPJ41CLONED2_UPPER_AERODIGESTIVE_TRACT
+ACH-000734,JHH-5,JHH5,Liver,Hepatocellular Carcinoma,Hepatocellular Carcinoma,JHH5_LIVER
+ACH-000735,PE/CA-PJ49,PECAPJ49,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,PECAPJ49_UPPER_AERODIGESTIVE_TRACT
+ACH-000736,SNU-601,SNU601,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Signet Ring Cell Carcinoma of the Stomach,SNU601_STOMACH
+ACH-000738,GB-1,GB1,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",GB1_CENTRAL_NERVOUS_SYSTEM
+ACH-000739,Hep G2,HEPG2,Liver,Hepatoblastoma,Hepatoblastoma,HEPG2_LIVER
+ACH-000740,A-253,A253,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,A253_SALIVARY_GLAND
+ACH-000741,U-BLC1,UBLC1,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,UBLC1_URINARY_TRACT
+ACH-000746,GSS,GSS,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Stomach Adenocarcinoma,GSS_STOMACH
+ACH-000747,NCI-H1703,NCIH1703,Lung,Non-Small Cell Lung Cancer,Lung Squamous Cell Carcinoma,NCIH1703_LUNG
+ACH-000748,SJSA-1,SJSA1,Bone,Osteosarcoma,Osteosarcoma,SJSA1_BONE
+ACH-000749,DMS 273,DMS273,Lung,Lung Neuroendocrine Tumor,Small Cell Lung Cancer,DMS273_LUNG
+ACH-000753,JMSU-1,JMSU1,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,JMSU1_URINARY_TRACT
+ACH-000754,L-428,L428,Lymphoid,Hodgkin Lymphoma,Hodgkin Lymphoma,L428_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000756,GI-1,GI1,CNS/Brain,Diffuse Glioma,Gliosarcoma,GI1_CENTRAL_NERVOUS_SYSTEM
+ACH-000757,A427,A427,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,A427_LUNG
+ACH-000758,MKN74,MKN74,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Tubular Stomach Adenocarcinoma,MKN74_STOMACH
+ACH-000760,LNZ308,LNZ308,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",LNZ308_CENTRAL_NERVOUS_SYSTEM
+ACH-000762,YD-38,YD38,Head and Neck,Head and Neck Squamous Cell Carcinoma,Head and Neck Squamous Cell Carcinoma,YD38_UPPER_AERODIGESTIVE_TRACT
+ACH-000763,MM1-S,MM1S,Lymphoid,Mature B-Cell Neoplasms,Plasma Cell Myeloma,MM1S_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000764,SH-10-TC,SH10TC,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Mucinous Stomach Adenocarcinoma,SH10TC_STOMACH
+ACH-000765,WM983B,WM983B,Skin,Melanoma,Melanoma,WM983B_SKIN
+ACH-000766,NCI-H1648,NCIH1648,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH1648_LUNG
+ACH-000767,NCI-H526,NCIH526,Lung,Lung Neuroendocrine Tumor,Small Cell Lung Cancer,NCIH526_LUNG
+ACH-000768,MDA-MB-231,MDAMB231,Breast,Invasive Breast Carcinoma,Invasive Breast Carcinoma,MDAMB231_BREAST
+ACH-000769,LK-2,LK2,Lung,Non-Small Cell Lung Cancer,Lung Squamous Cell Carcinoma,LK2_LUNG
+ACH-000770,P31/FUJ,P31FUJ,Myeloid,Acute Myeloid Leukemia,Acute Myeloid Leukemia,P31FUJ_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000771,BICR 56,BICR56,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,BICR56_UPPER_AERODIGESTIVE_TRACT
+ACH-000773,Ki-JK,KIJK,Lymphoid,Mature T and NK Neoplasms,Anaplastic Large-Cell Lymphoma ALK Positive,KIJK_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000774,RERF-LC-Ad2,RERFLCAD2,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,RERFLCAD2_LUNG
+ACH-000775,NCI-H727,NCIH727,Lung,Lung Neuroendocrine Tumor,Lung Carcinoid,NCIH727_LUNG
+ACH-000776,ONS-76,ONS76,CNS/Brain,Embryonal Tumor,"Medulloblastoma, NOS",ONS76_CENTRAL_NERVOUS_SYSTEM
+ACH-000777,KYSE-30,KYSE30,Esophagus/Stomach,Esophageal Squamous Cell Carcinoma,Esophageal Squamous Cell Carcinoma,KYSE30_OESOPHAGUS
+ACH-000778,HSC-3,HSC3,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,HSC3_UPPER_AERODIGESTIVE_TRACT
+ACH-000781,NCI-H2023,NCIH2023,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH2023_LUNG
+ACH-000782,SEM,SEM,Lymphoid,B-Cell Acute Lymphoblastic Leukemia,B-Cell Acute Lymphoblastic Leukemia,SEM_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000783,CAMA-1,CAMA1,Breast,Invasive Breast Carcinoma,Breast Invasive Lobular Carcinoma,CAMA1_BREAST
+ACH-000784,KYSE-70,KYSE70,Esophagus/Stomach,Esophageal Squamous Cell Carcinoma,Esophageal Squamous Cell Carcinoma,KYSE70_OESOPHAGUS
+ACH-000785,NCI-H2126,NCIH2126,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH2126_LUNG
+ACH-000787,LXF-289,LXF289,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,LXF289_LUNG
+ACH-000788,A2058,A2058,Skin,Melanoma,Melanoma,A2058_SKIN
+ACH-000790,SHP-77,SHP77,Lung,Lung Neuroendocrine Tumor,Small Cell Lung Cancer,SHP77_LUNG
+ACH-000791,RERF-LC-Ad1,RERFLCAD1,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,RERFLCAD1_LUNG
+ACH-000792,BFTC-909,BFTC909,Kidney,Renal Cell Carcinoma,Renal Cell Carcinoma,BFTC909_KIDNEY
+ACH-000793,KATO III,KATOIII,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Signet Ring Cell Carcinoma of the Stomach,KATOIII_STOMACH
+ACH-000794,BICR 22,BICR22,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,BICR22_UPPER_AERODIGESTIVE_TRACT
+ACH-000796,MCAS,MCAS,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Mucinous Ovarian Cancer,MCAS_OVARY
+ACH-000798,CL-40,CL40,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,CL40_LARGE_INTESTINE
+ACH-000799,Hs 695T,HS695T,Skin,Melanoma,Melanoma,HS695T_SKIN
+ACH-000800,NCI-H446,NCIH446,Lung,Lung Neuroendocrine Tumor,Small Cell Lung Cancer,NCIH446_LUNG
+ACH-000801,Hs 936.T,HS936T,Skin,Melanoma,Melanoma,HS936T_SKIN
+ACH-000802,BFTC-905,BFTC905,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,BFTC905_URINARY_TRACT
+ACH-000804,NB-1,NB1,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,NB1_AUTONOMIC_GANGLIA
+ACH-000805,COLO-679,COLO679,Skin,Melanoma,Cutaneous Melanoma,COLO679_SKIN
+ACH-000807,SNU-738,SNU738,CNS/Brain,Adult-Type Diffuse Glioma,Adult-Type Diffuse Glioma,SNU738_CENTRAL_NERVOUS_SYSTEM
+ACH-000809,KYSE-410,KYSE410,Esophagus/Stomach,Esophageal Squamous Cell Carcinoma,Esophageal Squamous Cell Carcinoma,KYSE410_OESOPHAGUS
+ACH-000810,SK-MEL-30,SKMEL30,Skin,Melanoma,Cutaneous Melanoma,SKMEL30_SKIN
+ACH-000811,SK-OV-3,SKOV3,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Serous Ovarian Cancer,SKOV3_OVARY
+ACH-000817,RPMI 8226,RPMI8226,Lymphoid,Mature B-Cell Neoplasms,Plasma Cell Myeloma,RPMI8226_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000819,LN-18,LN18,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",LN18_CENTRAL_NERVOUS_SYSTEM
+ACH-000820,SW403,SW403,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,SW403_LARGE_INTESTINE
+ACH-000821,EJM,EJM,Lymphoid,Mature B-Cell Neoplasms,Plasma Cell Myeloma,EJM_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000822,SK-MEL-24,SKMEL24,Skin,Melanoma,Melanoma,SKMEL24_SKIN
+ACH-000823,KYSE-140,KYSE140,Esophagus/Stomach,Esophageal Squamous Cell Carcinoma,Esophageal Squamous Cell Carcinoma,KYSE140_OESOPHAGUS
+ACH-000824,KYSE-510,KYSE510,Esophagus/Stomach,Esophageal Squamous Cell Carcinoma,Esophageal Squamous Cell Carcinoma,KYSE510_OESOPHAGUS
+ACH-000826,CAL-12T,CAL12T,Lung,Non-Small Cell Lung Cancer,Non-Small Cell Lung Cancer,CAL12T_LUNG
+ACH-000827,WM793,WM793,Skin,Melanoma,Melanoma,WM793_SKIN
+ACH-000829,HuNS1,HUNS1,Lymphoid,Mature B-Cell Neoplasms,Plasma Cell Myeloma,HUNS1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000831,HEC-50B,HEC50B,Uterus,Endometrial Carcinoma,Endometrial Carcinoma,HEC50B_ENDOMETRIUM
+ACH-000832,CAL 27,CAL27,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,CAL27_UPPER_AERODIGESTIVE_TRACT
+ACH-000833,RH-30,RH30,Soft Tissue,Rhabdomyosarcoma,Alveolar Rhabdomyosarcoma,RH30_SOFT_TISSUE
+ACH-000834,UM-UC-1,UMUC1,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,UMUC1_URINARY_TRACT
+ACH-000835,GCT,GCT,Soft Tissue,Undifferentiated Pleomorphic Sarcoma/Malignant Fibrous Histiocytoma/High-Grade Spindle Cell Sarcoma,Undifferentiated Pleomorphic Sarcoma/Malignant Fibrous Histiocytoma/High-Grade Spindle Cell Sarcoma,GCT_SOFT_TISSUE
+ACH-000836,YD-15,YD15,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,YD15_SALIVARY_GLAND
+ACH-000837,NCI-H322,NCIH322,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH322_LUNG
+ACH-000838,AMO-1,AMO1,Lymphoid,Mature B-Cell Neoplasms,Plasma Cell Myeloma,AMO1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000839,SCaBER,SCABER,Bladder/Urinary Tract,Bladder Squamous Cell Carcinoma,Bladder Squamous Cell Carcinoma,SCABER_URINARY_TRACT
+ACH-000840,HCC-366,HCC366,Lung,Non-Small Cell Lung Cancer,Lung Adenosquamous Carcinoma,HCC366_LUNG
+ACH-000841,NCI-H2087,NCIH2087,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH2087_LUNG
+ACH-000843,HARA,HARA,Lung,Non-Small Cell Lung Cancer,Lung Squamous Cell Carcinoma,HARA_LUNG
+ACH-000845,NCI-H1373,NCIH1373,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH1373_LUNG
+ACH-000846,FaDu,FADU,Head and Neck,Head and Neck Squamous Cell Carcinoma,Hypopharynx Squamous Cell Carcinoma,FADU_UPPER_AERODIGESTIVE_TRACT
+ACH-000847,HGC-27,HGC27,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Stomach Adenocarcinoma,HGC27_STOMACH
+ACH-000848,JHH-7,JHH7,Liver,Hepatocellular Carcinoma,Hepatocellular Carcinoma,JHH7_LIVER
+ACH-000849,MDA-MB-468,MDAMB468,Breast,Invasive Breast Carcinoma,Invasive Breast Carcinoma,MDAMB468_BREAST
+ACH-000851,MOR/CPR,MORCPR,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,MORCPR_LUNG
+ACH-000853,NCI-H661,NCIH661,Lung,Non-Small Cell Lung Cancer,Large Cell Lung Carcinoma,NCIH661_LUNG
+ACH-000855,KYSE-150,KYSE150,Esophagus/Stomach,Esophageal Squamous Cell Carcinoma,Esophageal Squamous Cell Carcinoma,KYSE150_OESOPHAGUS
+ACH-000856,CAL-51,CAL51,Breast,Invasive Breast Carcinoma,Invasive Breast Carcinoma,CAL51_BREAST
+ACH-000858,KNS-62,KNS62,Lung,Non-Small Cell Lung Cancer,Lung Squamous Cell Carcinoma,KNS62_LUNG
+ACH-000859,HCC1954,HCC1954,Breast,Invasive Breast Carcinoma,Breast Invasive Ductal Carcinoma,HCC1954_BREAST
+ACH-000860,NCI-H358,NCIH358,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH358_LUNG
+ACH-000861,HOP-62,HOP62,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,HOP62_LUNG
+ACH-000862,KMBC-2,KMBC2,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,KMBC2_URINARY_TRACT
+ACH-000863,DBTRG-05MG,DBTRG05MG,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",DBTRG05MG_CENTRAL_NERVOUS_SYSTEM
+ACH-000864,COLO 684,COLO684,Uterus,Endometrial Carcinoma,Endometrial Carcinoma,COLO684_ENDOMETRIUM
+ACH-000865,KYSE-450,KYSE450,Esophagus/Stomach,Esophageal Squamous Cell Carcinoma,Esophageal Squamous Cell Carcinoma,KYSE450_OESOPHAGUS
+ACH-000866,NCI-H1048,NCIH1048,Lung,Lung Neuroendocrine Tumor,Small Cell Lung Cancer,NCIH1048_LUNG
+ACH-000867,ChaGo-K-1,CHAGOK1,Lung,Non-Small Cell Lung Cancer,Non-Small Cell Lung Cancer,CHAGOK1_LUNG
+ACH-000869,NCI-H1568,NCIH1568,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH1568_LUNG
+ACH-000871,NCI-H510,NCIH510,Lung,Lung Neuroendocrine Tumor,Small Cell Lung Cancer,NCIH510_LUNG
+ACH-000872,HCC515,HCC515,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,HCC515_LUNG
+ACH-000873,KYSE-270,KYSE270,Esophagus/Stomach,Esophageal Squamous Cell Carcinoma,Esophageal Squamous Cell Carcinoma,KYSE270_OESOPHAGUS
+ACH-000874,RS4;11,RS411,Lymphoid,B-Cell Acute Lymphoblastic Leukemia,B-Cell Acute Lymphoblastic Leukemia,RS411_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000876,MDA-MB-415,MDAMB415,Breast,Invasive Breast Carcinoma,Invasive Breast Carcinoma,MDAMB415_BREAST
+ACH-000878,HCC-15,HCC15,Lung,Non-Small Cell Lung Cancer,Lung Squamous Cell Carcinoma,HCC15_LUNG
+ACH-000879,MFE-296,MFE296,Uterus,Endometrial Carcinoma,Endometrial Carcinoma,MFE296_ENDOMETRIUM
+ACH-000880,AGS,AGS,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Stomach Adenocarcinoma,AGS_STOMACH
+ACH-000881,MEL-JUSO,MELJUSO,Skin,Melanoma,Cutaneous Melanoma,MELJUSO_SKIN
+ACH-000882,IGR-1,IGR1,Skin,Melanoma,Melanoma,IGR1_SKIN
+ACH-000884,MDA-MB-435S,MDAMB435S,Skin,Melanoma,Melanoma,MDAMB435S_SKIN
+ACH-000885,TOV-21G,TOV21G,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Clear Cell Ovarian Cancer,TOV21G_OVARY
+ACH-000886,NCI-H2009,NCIH2009,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH2009_LUNG
+ACH-000887,SF-172,SF172,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",SF172_CENTRAL_NERVOUS_SYSTEM
+ACH-000888,NCI-H1793,NCIH1793,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH1793_LUNG
+ACH-000889,KMM-1,KMM1,Lymphoid,Mature B-Cell Neoplasms,Plasma Cell Myeloma,KMM1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000890,SW 1271,SW1271,Lung,SMARCA4-deficient undifferentiated tumor,SMARCA4-deficient undifferentiated tumor,SW1271_LUNG
+ACH-000894,NCI-H1869,NCIH1869,Lung,Non-Small Cell Lung Cancer,Lung Squamous Cell Carcinoma,NCIH1869_LUNG
+ACH-000896,647-V,647V,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,647V_URINARY_TRACT
+ACH-000898,SNU-719,SNU719,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Tubular Stomach Adenocarcinoma,SNU719_STOMACH
+ACH-000899,WM88,WM88,Skin,Melanoma,Melanoma,WM88_SKIN
+ACH-000900,NCI-H23,NCIH23,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH23_LUNG
+ACH-000901,HCC-1359,HCC1359,Lung,Non-Small Cell Lung Cancer,Giant Cell Carcinoma of the Lung,HCC1359_LUNG
+ACH-000903,FTC-133,FTC133,Thyroid,Well-Differentiated Thyroid Cancer,Follicular Thyroid Cancer,FTC133_THYROID
+ACH-000905,5637,5637,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,5637_URINARY_TRACT
+ACH-000906,ES-2,ES2,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Clear Cell Ovarian Cancer,ES2_OVARY
+ACH-000907,SNU-349,SNU349,Kidney,Renal Cell Carcinoma,Renal Clear Cell Carcinoma,SNU349_KIDNEY
+ACH-000910,MDA-MB-453,MDAMB453,Breast,Invasive Breast Carcinoma,Invasive Breast Carcinoma,MDAMB453_BREAST
+ACH-000911,NUGC-3,NUGC3,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Stomach Adenocarcinoma,NUGC3_STOMACH
+ACH-000912,NCI-H2286,NCIH2286,Lung,Lung Neuroendocrine Tumor,Small Cell Lung Cancer,NCIH2286_LUNG
+ACH-000913,ESS-1,ESS1,Uterus,Uterine Sarcoma/Mesenchymal,Endometrial Stromal Sarcoma,ESS1_ENDOMETRIUM
+ACH-000914,HT,HT,Lymphoid,Mature B-Cell Neoplasms,"Diffuse Large B-Cell Lymphoma, NOS",HT_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000915,IPC-298,IPC298,Skin,Melanoma,Cutaneous Melanoma,IPC298_SKIN
+ACH-000916,NCI-H1573,NCIH1573,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH1573_LUNG
+ACH-000917,TE-4,TE4,Esophagus/Stomach,Esophageal Squamous Cell Carcinoma,Esophageal Squamous Cell Carcinoma,TE4_OESOPHAGUS
+ACH-000919,IM95,IM95,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Stomach Adenocarcinoma,IM95_STOMACH
+ACH-000920,CML-T1,CMLT1,Myeloid,Myeloproliferative Neoplasms,"Chronic Myeloid Leukemia, BCR-ABL1+",CMLT1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000921,NCI-H157-DM,NCIH157DM,Lung,Non-Small Cell Lung Cancer,Lung Squamous Cell Carcinoma,NCIH157DM_LUNG
+ACH-000922,RCH-ACV,RCHACV,Lymphoid,B-Cell Acute Lymphoblastic Leukemia,B-Cell Acute Lymphoblastic Leukemia,RCHACV_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000924,NCI-H2172,NCIH2172,Lung,Non-Small Cell Lung Cancer,Non-Small Cell Lung Cancer,NCIH2172_LUNG
+ACH-000926,HT-55,HT55,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,HT55_LARGE_INTESTINE
+ACH-000928,JHUEM-1,JHUEM1,Uterus,Endometrial Carcinoma,Endometrial Carcinoma,JHUEM1_ENDOMETRIUM
+ACH-000929,NCI-H2110,NCIH2110,Lung,Non-Small Cell Lung Cancer,Non-Small Cell Lung Cancer,NCIH2110_LUNG
+ACH-000932,SNU-1,SNU1,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Stomach Adenocarcinoma,SNU1_STOMACH
+ACH-000934,MDA-MB-361,MDAMB361,Breast,Invasive Breast Carcinoma,Invasive Breast Carcinoma,MDAMB361_BREAST
+ACH-000935,MDST8,MDST8,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,MDST8_LARGE_INTESTINE
+ACH-000936,EFO-27,EFO27,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Mucinous Ovarian Cancer,EFO27_OVARY
+ACH-000937,PF-382,PF382,Lymphoid,T-Lymphoblastic Leukemia/Lymphoma,T-Cell Acute Lymphoblastic Leukemia,PF382_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000938,NALM-6,NALM6,Lymphoid,B-Cell Acute Lymphoblastic Leukemia,B-Cell Acute Lymphoblastic Leukemia,NALM6_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000939,SK-UT-1,SKUT1,Uterus,Uterine Sarcoma/Mesenchymal,Uterine Leiomyosarcoma,SKUT1_SOFT_TISSUE
+ACH-000941,HEC-1-B,HEC1B,Uterus,Endometrial Carcinoma,Endometrial Carcinoma,HEC1B_ENDOMETRIUM
+ACH-000943,RKO,RKO,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,RKO_LARGE_INTESTINE
+ACH-000944,NAMALWA,NAMALWA,Lymphoid,Mature B-Cell Neoplasms,Burkitt Lymphoma,NAMALWA_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000945,NCI-H650,NCIH650,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,NCIH650_LUNG
+ACH-000946,HEC-265,HEC265,Uterus,Endometrial Carcinoma,Endometrial Carcinoma,HEC265_ENDOMETRIUM
+ACH-000947,OVK18,OVK18,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Endometrioid Ovarian Cancer,OVK18_OVARY
+ACH-000948,23132/87,2313287,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Stomach Adenocarcinoma,2313287_STOMACH
+ACH-000950,LoVo,LOVO,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,LOVO_LARGE_INTESTINE
+ACH-000953,SUP-T1,SUPT1,Lymphoid,T-Lymphoblastic Leukemia/Lymphoma,T-Cell Acute Lymphoblastic Leukemia,SUPT1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000956,22Rv1,22RV1,Prostate,Prostate Adenocarcinoma,Prostate Adenocarcinoma,22RV1_PROSTATE
+ACH-000957,LS 180,LS180,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,LS180_LARGE_INTESTINE
+ACH-000958,SW48,SW48,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,SW48_LARGE_INTESTINE
+ACH-000959,SNU-C4,SNUC4,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,SNUC4_LARGE_INTESTINE
+ACH-000960,Reh,REH,Lymphoid,B-Cell Acute Lymphoblastic Leukemia,B-Cell Acute Lymphoblastic Leukemia,REH_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000961,Ishikawa (Heraklio) 02 ER-,ISHIKAWAHERAKLIO02ER,Uterus,Endometrial Carcinoma,Endometrial Carcinoma,ISHIKAWAHERAKLIO02ER_ENDOMETRIUM
+ACH-000962,OC 314,OC314,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Serous Ovarian Cancer,OC314_OVARY
+ACH-000963,CCK-81,CCK81,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,CCK81_LARGE_INTESTINE
+ACH-000965,RL95-2,RL952,Uterus,Endometrial Carcinoma,Uterine Adenosquamous Carcinoma,RL952_ENDOMETRIUM
+ACH-000966,IGROV1,IGROV1,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Endometrioid Ovarian Cancer,IGROV1_OVARY
+ACH-000968,COLO 792,COLO792,Skin,Melanoma,Melanoma,COLO792_SKIN
+ACH-000969,KM12,KM12,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,KM12_LARGE_INTESTINE
+ACH-000970,SNU-C5,SNUC5,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,SNUC5_LARGE_INTESTINE
+ACH-000971,HCT 116,HCT116,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,HCT116_LARGE_INTESTINE
+ACH-000972,HEC-151,HEC151,Uterus,Endometrial Carcinoma,Endometrial Carcinoma,HEC151_ENDOMETRIUM
+ACH-000973,639-V,639V,Bladder/Urinary Tract,Urethral Cancer,Urethral Urothelial Carcinoma,639V_URINARY_TRACT
+ACH-000974,SNG-M,SNGM,Uterus,Endometrial Carcinoma,Endometrial Carcinoma,SNGM_ENDOMETRIUM
+ACH-000975,HCC2450,HCC2450,Lung,Non-Small Cell Lung Cancer,Lung Squamous Cell Carcinoma,HCC2450_LUNG
+ACH-000976,HuCCT1,HUCCT1,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Intrahepatic Cholangiocarcinoma,HUCCT1_BILIARY_TRACT
+ACH-000977,LNCaP clone FGC,LNCAPCLONEFGC,Prostate,Prostate Adenocarcinoma,Prostate Adenocarcinoma,LNCAPCLONEFGC_PROSTATE
+ACH-000978,EN,EN,Uterus,Endometrial Carcinoma,Endometrial Carcinoma,EN_ENDOMETRIUM
+ACH-000979,DU 145,DU145,Prostate,Prostate Adenocarcinoma,Prostate Adenocarcinoma,DU145_PROSTATE
+ACH-000980,NCI-H1155,NCIH1155,Lung,Non-Small Cell Lung Cancer,Large Cell Lung Carcinoma,NCIH1155_LUNG
+ACH-000981,DND-41,DND41,Lymphoid,T-Lymphoblastic Leukemia/Lymphoma,T-Cell Acute Lymphoblastic Leukemia,DND41_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000983,KCL-22,KCL22,Myeloid,Myeloproliferative Neoplasms,"Chronic Myeloid Leukemia, BCR-ABL1+",KCL22_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000984,HEC-6,HEC6,Uterus,Endometrial Carcinoma,Uterine Adenosquamous Carcinoma,HEC6_ENDOMETRIUM
+ACH-000985,LS411N,LS411N,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,LS411N_LARGE_INTESTINE
+ACH-000986,HT115,HT115,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,HT115_LARGE_INTESTINE
+ACH-000988,MFE-319,MFE319,Uterus,Endometrial Carcinoma,Uterine Adenosquamous Carcinoma,MFE319_ENDOMETRIUM
+ACH-000991,SNU-81,SNU81,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,SNU81_LARGE_INTESTINE
+ACH-000993,JHUEM-7,JHUEM7,Uterus,Endometrial Carcinoma,Endometrial Carcinoma,JHUEM7_ENDOMETRIUM
+ACH-000994,HEC-59,HEC59,Uterus,Endometrial Carcinoma,Endometrial Carcinoma,HEC59_ENDOMETRIUM
+ACH-000995,JURKAT,JURKAT,Lymphoid,T-Lymphoblastic Leukemia/Lymphoma,T-Cell Acute Lymphoblastic Leukemia,JURKAT_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-000996,HEC-251,HEC251,Uterus,Endometrial Carcinoma,Endometrial Carcinoma,HEC251_ENDOMETRIUM
+ACH-000997,HCT-15,HCT15,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,HCT15_LARGE_INTESTINE
+ACH-001001,143B,143B,Bone,Osteosarcoma,Osteosarcoma,143B_BONE
+ACH-001016,Becker,BECKER,CNS/Brain,Adult-Type Diffuse Glioma,"Astrocytoma, IDH-Mutant",BECKER_CENTRAL_NERVOUS_SYSTEM
+ACH-001020,BT-16,BT16,CNS/Brain,Embryonal Tumor,Atypical Teratoid/Rhabdoid Tumor,BT16_SOFT_TISSUE
+ACH-001021,C3A,C3A,Liver,Hepatoblastoma,Hepatoblastoma,C3A_LIVER
+ACH-001028,CHLA-06-ATRT,CHLA06ATRT,CNS/Brain,Embryonal Tumor,Atypical Teratoid/Rhabdoid Tumor,CHLA06ATRT_SOFT_TISSUE
+ACH-001029,CHLA-10,CHLA10,Bone,Ewing Sarcoma,Ewing Sarcoma,CHLA10_BONE
+ACH-001031,CHLA-266,CHLA266,CNS/Brain,Embryonal Tumor,Atypical Teratoid/Rhabdoid Tumor,CHLA266_SOFT_TISSUE
+ACH-001033,CHLA-57,CHLA57,CNS/Brain,Embryonal Tumor,Primitive Neuroectodermal Tumor,CHLA57_BONE
+ACH-001036,CMK-11-5,CMK115,Myeloid,Acute Myeloid Leukemia,Myeloid Leukemia Associated with Down Syndrome,CMK115_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001038,COG-E-352,COGE352,Bone,Ewing Sarcoma,Ewing Sarcoma,COGE352_BONE
+ACH-001041,CHL-1-DM,CHL1DM,Skin,Melanoma,Melanoma,CHL1DM_SKIN
+ACH-001048,COV504,COV504,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Serous Ovarian Cancer,COV504_OVARY
+ACH-001050,CW9019,CW9019,Soft Tissue,Rhabdomyosarcoma,Alveolar Rhabdomyosarcoma,CW9019_SOFT_TISSUE
+ACH-001053,D425,D425,CNS/Brain,Embryonal Tumor,"Medulloblastoma, Group 3",D425_CENTRAL_NERVOUS_SYSTEM
+ACH-001054,D458,D458,CNS/Brain,Embryonal Tumor,"Medulloblastoma, Group 3",D458_CENTRAL_NERVOUS_SYSTEM
+ACH-001061,DLD-1,DLD1,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,DLD1_LARGE_INTESTINE
+ACH-001067,F5,F5,CNS/Brain,Meningothelial Tumor,Meningioma,F5_CENTRAL_NERVOUS_SYSTEM
+ACH-001075,NCI-H292,NCIH292,Lung,Non-Small Cell Lung Cancer,Mucoepidermoid Carcinoma of the Lung,NCIH292_LUNG
+ACH-001096,JR,JR,Soft Tissue,Rhabdomyosarcoma,Alveolar Rhabdomyosarcoma,JR_SOFT_TISSUE
+ACH-001098,KCI-MOH1,KCIMOH1,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,KCIMOH1_PANCREAS
+ACH-001099,KD,KD,Soft Tissue,Rhabdoid Cancer,Extrarenal Rhabdoid Cancer,KD_SOFT_TISSUE
+ACH-001111,L82,L82,Lymphoid,Mature T and NK Neoplasms,Anaplastic Large-Cell Lymphoma ALK Positive,L82_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001119,Mac-2A,MAC2A,Lymphoid,Mature T and NK Neoplasms,Anaplastic Large-Cell Lymphoma ALK Negative,MAC2A_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001128,MON,MON,Soft Tissue,Rhabdoid Cancer,Extrarenal Rhabdoid Cancer,MON_SOFT_TISSUE
+ACH-001129,MONO-MAC-1,MONOMAC1,Myeloid,Acute Myeloid Leukemia,Acute Monoblastic/Monocytic Leukemia,MONOMAC1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001134,MYLA,MYLA,Lymphoid,Non-Hodgkin Lymphoma,Non-Hodgkin Lymphoma,MYLA_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001145,OC 316,OC316,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Serous Ovarian Cancer,OC316_OVARY
+ACH-001151,OVCAR-5,OVCAR5,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,High-Grade Serous Ovarian Cancer,OVCAR5_OVARY
+ACH-001163,CCLF_PEDS_0001_T,CCLFPEDS0001T,Kidney,Renal Cell Carcinoma,Renal Medullary Carcinoma,PEDS005TSUSP_KIDNEY
+ACH-001164,CCLF_PEDS_0003_T,CCLFPEDS0003T,Soft Tissue,Undifferentiated Pleomorphic Sarcoma/Malignant Fibrous Histiocytoma/High-Grade Spindle Cell Sarcoma,Undifferentiated Pleomorphic Sarcoma/Malignant Fibrous Histiocytoma/High-Grade Spindle Cell Sarcoma,CCLFPEDS0003T_SOFT_TISSUE
+ACH-001172,U-251 MG DM,U251MGDM,CNS/Brain,Adult-Type Diffuse Glioma,"Astrocytoma, IDH-Mutant",U251MGDM_Brain
+ACH-001183,RT112/84,RT11284,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,RT11284_URINARY_TRACT
+ACH-001184,SCMC-RM2,SCMCRM2,Soft Tissue,Rhabdomyosarcoma,Alveolar Rhabdomyosarcoma,SCMCRM2_SOFT_TISSUE
+ACH-001188,SH-SY5Y,SHSY5Y,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,SHSY5Y_AUTONOMIC_GANGLIA
+ACH-001190,SK-MEL-2,SKMEL2,Skin,Melanoma,Melanoma,SKMEL2_SKIN
+ACH-001192,SK-NEP-1,SKNEP1,Bone,Ewing Sarcoma,Ewing Sarcoma,SKNEP1_BONE
+ACH-001193,SK-PN-DW,SKPNDW,Bone,Ewing Sarcoma,Ewing Sarcoma,SKPNDW_BONE
+ACH-001194,SK-RC-31,SKRC31,Kidney,Renal Cell Carcinoma,Renal Cell Carcinoma,SKRC31_KIDNEY
+ACH-001196,SMS-CTR,SMSCTR,Soft Tissue,Rhabdomyosarcoma,Embryonal Rhabdomyosarcoma,SMSCTR_SOFT_TISSUE
+ACH-001197,SMZ-1,SMZ1,Lymphoid,Non-Hodgkin Lymphoma,Mature T and NK Neoplasms,SMZ1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001205,TC-32,TC32,Bone,Ewing Sarcoma,Ewing Sarcoma,TC32_BONE
+ACH-001211,TTC-549,TTC549,Soft Tissue,Rhabdoid Cancer,Extrarenal Rhabdoid Cancer,TTC549_SOFT_TISSUE
+ACH-001227,UPCI-SCC-090,UPCISCC090,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,UPCISCC090_UPPER_AERODIGESTIVE_TRACT
+ACH-001228,UPCI-SCC-152,UPCISCC152,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,UPCISCC152_UPPER_AERODIGESTIVE_TRACT
+ACH-001229,UPCI-SCC-154,UPCISCC154,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,UPCISCC154_UPPER_AERODIGESTIVE_TRACT
+ACH-001232,UW228,UW228,CNS/Brain,Embryonal Tumor,"Medulloblastoma, NOS",UW228_CENTRAL_NERVOUS_SYSTEM
+ACH-001239,WM-266-4,WM2664,Skin,Melanoma,Melanoma,WM2664_SKIN
+ACH-001270,1273/99,127399,Soft Tissue,Synovial Sarcoma,Synovial Sarcoma,127399_SOFT_TISSUE
+ACH-001274,SW982,SW982,Soft Tissue,Synovial Sarcoma,Synovial Sarcoma,SW982_SOFT_TISSUE
+ACH-001275,SYO-1,SYO1,Bone,Osteosarcoma,Osteosarcoma,SYO1_SOFT_TISSUE
+ACH-001277,Yamato,YAMATO,Soft Tissue,Synovial Sarcoma,Synovial Sarcoma,YAMATO_SOFT_TISSUE
+ACH-001278,BIN-67,BIN67,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Small Cell Carcinoma of the Ovary,BIN67_OVARY
+ACH-001279,SCCOHT-1,SCCOHT1,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Small Cell Carcinoma of the Ovary,SCCOHT1_OVARY
+ACH-001280,SCS-214,SCS214,Soft Tissue,Synovial Sarcoma,Synovial Sarcoma,SCS214_SOFT_TISSUE
+ACH-001283,TC-106,TC106,Bone,Ewing Sarcoma,Ewing Sarcoma,TC106_BONE
+ACH-001289,COG-AR-359,COGAR359,CNS/Brain,Embryonal Tumor,Atypical Teratoid/Rhabdoid Tumor,COGAR359_SOFT_TISSUE
+ACH-001295,Y-79,Y79,Eye,Retinoblastoma,Retinoblastoma,Y79_AUTONOMIC_GANGLIA
+ACH-001300,CHLA-15,CHLA15,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,CHLA15_AUTONOMIC_GANGLIA
+ACH-001301,COG-N-278,COGN278,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,COGN278_AUTONOMIC_GANGLIA
+ACH-001302,COG-N-305,COGN305,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,COGN305_AUTONOMIC_GANGLIA
+ACH-001303,NB-1643,NB1643,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,NB1643_AUTONOMIC_GANGLIA
+ACH-001306,8305C,8305C,Thyroid,Anaplastic Thyroid Cancer,Anaplastic Thyroid Cancer,8305C_THYROID
+ACH-001307,8505C,8505C,Thyroid,Anaplastic Thyroid Cancer,Anaplastic Thyroid Cancer,8505C_THYROID
+ACH-001310,HA1E,HA1E,Kidney,Non-Cancerous,Immortalized Embyonic Kidney Cells,HA1E_KIDNEY
+ACH-001318,PLC/PRF/5,PLCPRF5,Liver,Hepatocellular Carcinoma,Hepatocellular Carcinoma,PLCPRF5_LIVER
+ACH-001322,CME-1,CME1,Soft Tissue,Synovial Sarcoma,Synovial Sarcoma,CME1_SOFT_TISSUE
+ACH-001328,A-431,A431,Skin,Cutaneous Squamous Cell Carcinoma,Cutaneous Squamous Cell Carcinoma,A431_SKIN
+ACH-001329,ANGM-CSS,ANGMCSS,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",ANGMCSS_CENTRAL_NERVOUS_SYSTEM
+ACH-001332,BICR 78,BICR78,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,BICR78_UPPER_AERODIGESTIVE_TRACT
+ACH-001333,C-33 A,C33A,Cervix,Cervical Squamous Cell Carcinoma,Cervical Squamous Cell Carcinoma,C33A_CERVIX
+ACH-001334,C-4 I,C4I,Cervix,Cervical Squamous Cell Carcinoma,Cervical Squamous Cell Carcinoma,C4I_CERVIX
+ACH-001335,C-4 II,C4II,Cervix,Cervical Squamous Cell Carcinoma,Cervical Squamous Cell Carcinoma,C4II_CERVIX
+ACH-001336,Ca Ski,CASKI,Cervix,Cervical Squamous Cell Carcinoma,Cervical Squamous Cell Carcinoma,CASKI_CERVIX
+ACH-001338,CHP-134,CHP134,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,CHP134_AUTONOMIC_GANGLIA
+ACH-001340,COV413A,COV413A,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Serous Ovarian Cancer,COV413A_OVARY
+ACH-001341,DoTc2 4510,DOTC24510,Cervix,Mixed Cervical Carcinoma,Mixed Cervical Carcinoma,DOTC24510_CERVIX
+ACH-001344,GI-ME-N,GIMEN,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,GIMEN_AUTONOMIC_GANGLIA
+ACH-001345,GP5d,GP5D,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,GP5D_LARGE_INTESTINE
+ACH-001346,H103,H103,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,H103_UPPER_AERODIGESTIVE_TRACT
+ACH-001347,H157,H157,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,H157_UPPER_AERODIGESTIVE_TRACT
+ACH-001349,HD-MB03,HDMB03,CNS/Brain,Embryonal Tumor,"Medulloblastoma, NOS",HDMB03_CENTRAL_NERVOUS_SYSTEM
+ACH-001353,JOPACA-1,JOPACA1,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,JOPACA1_PANCREAS
+ACH-001354,LAN-2,LAN2,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,LAN2_AUTONOMIC_GANGLIA
+ACH-001356,MB-1,MB1,Thyroid,Anaplastic Thyroid Cancer,Anaplastic Thyroid Cancer,MB1_THYROID
+ACH-001360,MS751,MS751,Cervix,Cervical Squamous Cell Carcinoma,Cervical Squamous Cell Carcinoma,MS751_CERVIX
+ACH-001366,NGP,NGP,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,NGP_AUTONOMIC_GANGLIA
+ACH-001367,NMB,NMB,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,NMB_AUTONOMIC_GANGLIA
+ACH-001368,OAC-M5.1,OACM51,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Esophageal Adenocarcinoma,OACM51_OESOPHAGUS
+ACH-001370,OCI-P5x,OCIP5X,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Serous Ovarian Cancer,OCIP5X_OVARY
+ACH-001374,PA-1 [PA1],PA1,Ovary/Fallopian Tube,Ovarian Germ Cell Tumor,Mixed Germ Cell Tumor,PA1_OVARY
+ACH-001375,PACADD-119,PACADD119,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,PACADD119_PANCREAS
+ACH-001376,PACADD-135,PACADD135,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,PACADD135_PANCREAS
+ACH-001377,PACADD-137,PACADD137,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,PACADD137_PANCREAS
+ACH-001379,PACADD-161,PACADD161,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,PACADD161_PANCREAS
+ACH-001380,PACADD-165,PACADD165,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,PACADD165_PANCREAS
+ACH-001382,PACADD-188,PACADD188,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,PACADD188_PANCREAS
+ACH-001385,RPMI 2650,RPMI2650,Head and Neck,"Head and Neck Carcinoma, Other",NUT Midline Carcinoma of the Head and Neck,RPMI2650_UPPER_AERODIGESTIVE_TRACT
+ACH-001386,SCLC-22H,SCLC22H,Lung,Lung Neuroendocrine Tumor,Small Cell Lung Cancer,SCLC22H_LUNG
+ACH-001388,SUM-102PT,SUM102PT,Breast,Invasive Breast Carcinoma,Breast Invasive Ductal Carcinoma,SUM102PT_BREAST
+ACH-001389,SUM-1315MO2,SUM1315MO2,Breast,Invasive Breast Carcinoma,Breast Invasive Ductal Carcinoma,SUM1315MO2_BREAST
+ACH-001390,SUM-149PT,SUM149PT,Breast,Invasive Breast Carcinoma,Breast Invasive Ductal Carcinoma,SUM149PT_BREAST
+ACH-001391,SUM-159PT,SUM159PT,Breast,Invasive Breast Carcinoma,Invasive Breast Carcinoma,SUM159PT_BREAST
+ACH-001392,SUM-185PE,SUM185PE,Breast,Invasive Breast Carcinoma,Invasive Breast Carcinoma,SUM185PE_BREAST
+ACH-001393,SUM-190PT,SUM190PT,Breast,Invasive Breast Carcinoma,Invasive Breast Carcinoma,SUM190PT_BREAST
+ACH-001394,SUM-229PE,SUM229PE,Breast,Invasive Breast Carcinoma,Invasive Breast Carcinoma,SUM229PE_BREAST
+ACH-001396,SUM-52PE,SUM52PE,Breast,Invasive Breast Carcinoma,Invasive Breast Carcinoma,SUM52PE_BREAST
+ACH-001398,SW 156,SW156,Kidney,Renal Cell Carcinoma,Renal Cell Carcinoma,SW156_KIDNEY
+ACH-001399,SW 626,SW626,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,SW626_LARGE_INTESTINE
+ACH-001400,SW 954,SW954,Vulva/Vagina,Squamous Cell Carcinoma of the Vulva/Vagina,Squamous Cell Carcinoma of the Vulva/Vagina,SW954_CERVIX
+ACH-001401,SW-13,SW13,Adrenal Gland,Adrenocortical Carcinoma,Adrenocortical Carcinoma,SW13_ADRENAL_CORTEX
+ACH-001402,SW756,SW756,Cervix,Cervical Squamous Cell Carcinoma,Cervical Squamous Cell Carcinoma,SW756_CERVIX
+ACH-001403,TO14,TO14,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Serous Ovarian Cancer,TO14_OVARY
+ACH-001407,UM-UC-13,UMUC13,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,UMUC13_URINARY_TRACT
+ACH-001408,UM-UC-14,UMUC14,Bladder/Urinary Tract,Urethral Cancer,Urethral Urothelial Carcinoma,UMUC14_URINARY_TRACT
+ACH-001409,UM-UC-16,UMUC16,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,UMUC16_URINARY_TRACT
+ACH-001411,UM-UC-5,UMUC5,Bladder/Urinary Tract,Bladder Squamous Cell Carcinoma,Bladder Squamous Cell Carcinoma,UMUC5_URINARY_TRACT
+ACH-001412,UM-UC-10,UMUC10,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,UMUC10_URINARY_TRACT
+ACH-001413,UM-UC-11,UMUC11,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,UMUC11_URINARY_TRACT
+ACH-001414,UM-UC-6,UMUC6,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,UMUC6_URINARY_TRACT
+ACH-001415,UM-UC7,UMUC7,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,UMUC7_URINARY_TRACT
+ACH-001416,UM-UC9,UMUC9,Bladder/Urinary Tract,Bladder Urothelial Carcinoma,Bladder Urothelial Carcinoma,UMUC9_URINARY_TRACT
+ACH-001418,UWB1.289,UWB1289,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Serous Ovarian Cancer,UWB1289_OVARY
+ACH-001419,VP229,VP229,Breast,Invasive Breast Carcinoma,Breast Invasive Ductal Carcinoma,VP229_BREAST
+ACH-001421,WERI-Rb-1,WERIRB1,Eye,Retinoblastoma,Retinoblastoma,WERIRB1_AUTONOMIC_GANGLIA
+ACH-001422,WPE1-NA22,WPE1NA22,Prostate,Non-Cancerous,"Immortalized Epithelial Cells, Prostate",WPE1NA22_PROSTATE
+ACH-001428,CCLF_PEDS_0010_T,CCLFPEDS0010T,Bone,Ewing Sarcoma,Ewing Sarcoma,CCLFPEDS0010T_BONE
+ACH-001430,TC-138,TC138,Bone,Ewing Sarcoma,Ewing Sarcoma,TC138_BONE
+ACH-001431,TC-205,TC205,Bone,Ewing Sarcoma,Ewing Sarcoma,TC205_BONE
+ACH-001433,CCLF_PEDS_0008_T,CCLFPEDS0008T,Soft Tissue,Epithelioid Sarcoma,Epithelioid Sarcoma,CCLFPEDS0008T_SOFT_TISSUE
+ACH-001442,A388,A388,Skin,Cutaneous Squamous Cell Carcinoma,Cutaneous Squamous Cell Carcinoma,A388_SKIN
+ACH-001443,ASH-3,ASH3,Thyroid,Anaplastic Thyroid Cancer,Anaplastic Thyroid Cancer,ASH3_THYROID
+ACH-001450,BLUE-1,BLUE1,Lymphoid,Mature B-Cell Neoplasms,Burkitt Lymphoma,BLUE1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001451,BOKU,BOKU,Cervix,Cervical Squamous Cell Carcinoma,Cervical Squamous Cell Carcinoma,BOKU_CERVIX
+ACH-001453,BPH-1,BPH1,Prostate,Non-Cancerous,"Hyperplasia, Prostate",BPH1_PROSTATE
+ACH-001454,C10,C10,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,C10_LARGE_INTESTINE
+ACH-001458,C75,C75,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,C75_LARGE_INTESTINE
+ACH-001459,C80,C80,Bowel,Colorectal Adenocarcinoma,Rectal Adenocarcinoma,C80_LARGE_INTESTINE
+ACH-001460,C84,C84,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,C84_LARGE_INTESTINE
+ACH-001461,C99,C99,Bowel,Colorectal Adenocarcinoma,Rectal Adenocarcinoma,C99_LARGE_INTESTINE
+ACH-001465,CHLA-136,CHLA136,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,CHLA136_AUTONOMIC_GANGLIA
+ACH-001481,CHLA-90,CHLA90,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,CHLA90_AUTONOMIC_GANGLIA
+ACH-001484,CI,CI,Lymphoid,Mature B-Cell Neoplasms,Chronic Lymphocytic Leukemia/Small Lymphocytic Lymphoma,CI_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001494,EGI-1,EGI1,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Extrahepatic Cholangiocarcinoma,EGI1_BILIARY_TRACT
+ACH-001495,EMTOKA,EMTOKA,Uterus,Endometrial Carcinoma,Uterine Carcinosarcoma/Uterine Malignant Mixed Mullerian Tumor,EMTOKA_ENDOMETRIUM
+ACH-001496,ESO26,ESO26,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Adenocarcinoma of the Gastroesophageal Junction,ESO26_OESOPHAGUS
+ACH-001497,ESO51,ESO51,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Esophageal Adenocarcinoma,ESO51_OESOPHAGUS
+ACH-001498,Farage,FARAGE,Lymphoid,Mature B-Cell Neoplasms,Germinal Center B-Cell Type,FARAGE_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001500,FLO-1,FLO1,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Esophageal Adenocarcinoma,FLO1_OESOPHAGUS
+ACH-001502,GCT-27,GCT27,Testis,Non-Seminomatous Germ Cell Tumor,Teratoma,GCT27_TESTIS
+ACH-001508,H314,H314,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,H314_UPPER_AERODIGESTIVE_TRACT
+ACH-001509,H357,H357,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,H357_UPPER_AERODIGESTIVE_TRACT
+ACH-001510,H376,H376,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,H376_UPPER_AERODIGESTIVE_TRACT
+ACH-001511,H413,H413,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,H413_UPPER_AERODIGESTIVE_TRACT
+ACH-001513,HCA-1,HCA1,Cervix,Cervical Adenocarcinoma,Endocervical Adenocarcinoma,HCA1_CERVIX
+ACH-001515,HCS-2,HCS2,Cervix,Cervical Squamous Cell Carcinoma,Cervical Squamous Cell Carcinoma,HCS2_CERVIX
+ACH-001517,HEC-1,HEC1,Uterus,Endometrial Carcinoma,Endometrial Carcinoma,HEC1_ENDOMETRIUM
+ACH-001518,HEC-116,HEC116,Uterus,Endometrial Carcinoma,Endometrial Carcinoma,HEC116_ENDOMETRIUM
+ACH-001520,HG-3,HG3,Lymphoid,Non-Cancerous,"Transformed cell line, B lymphoblast",HG3_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001521,HKA-1,HKA1,Skin,Cutaneous Squamous Cell Carcinoma,Cutaneous Squamous Cell Carcinoma,HKA1_SKIN
+ACH-001522,HMY-1,HMY1,Skin,Melanoma,Melanoma,HMY1_SKIN
+ACH-001523,HSC-1,HSC1,Skin,Cutaneous Squamous Cell Carcinoma,Cutaneous Squamous Cell Carcinoma,HSC1_SKIN
+ACH-001524,HSC-5,HSC5,Skin,Cutaneous Squamous Cell Carcinoma,Cutaneous Squamous Cell Carcinoma,HSC5_SKIN
+ACH-001525,HT-3,HT3,Cervix,Cervical Adenocarcinoma,Cervical Adenocarcinoma,HT3_CERVIX
+ACH-001526,HuO9,HUO9,Bone,Osteosarcoma,Osteosarcoma,HUO9_BONE
+ACH-001528,IHH-4,IHH4,Thyroid,Well-Differentiated Thyroid Cancer,Papillary Thyroid Cancer,IHH4_THYROID
+ACH-001529,JAR,JAR,Uterus,Gestational Trophoblastic Disease,Choriocarcinoma,JAR_PLACENTA
+ACH-001530,JEG-3,JEG3,Uterus,Gestational Trophoblastic Disease,Choriocarcinoma,JEG3_PLACENTA
+ACH-001532,JMU-RTK-2,JMURTK2,Kidney,Rhabdoid Cancer,Rhabdoid Cancer,JMURTK2_SOFT_TISSUE
+ACH-001533,KARPAS 1718,KARPAS1718,Lymphoid,Mature B-Cell Neoplasms,Splenic Marginal Zone Lymphoma,KARPAS1718_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001536,KKU-100,KKU100,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Extrahepatic Cholangiocarcinoma,KKU100_BILIARY_TRACT
+ACH-001538,KKU-213,KKU213,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Intrahepatic Cholangiocarcinoma,KKU213_BILIARY_TRACT
+ACH-001539,KML-1,KML1,Lymphoid,Mature B-Cell Neoplasms,Germinal Center B-Cell Type,KML1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001542,KON,KON,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,KON_UPPER_AERODIGESTIVE_TRACT
+ACH-001543,KOSC-2,KOSC2,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,KOSC2CL343_UPPER_AERODIGESTIVE_TRACT
+ACH-001547,LO68,LO68,Pleura,Pleural Mesothelioma,"Pleural Mesothelioma, Epithelioid Type",LO68_LUNG
+ACH-001548,LS,LS,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,LS_AUTONOMIC_GANGLIA
+ACH-001549,Lu-135,LU135,Lung,Lung Neuroendocrine Tumor,Small Cell Lung Cancer,LU135_LUNG
+ACH-001550,MCC13,MCC13,Skin,Merkel Cell Carcinoma,Merkel Cell Carcinoma,MCC13_SKIN
+ACH-001551,MCC14/2,MCC142,Skin,Merkel Cell Carcinoma,Merkel Cell Carcinoma,MCC142_SKIN
+ACH-001552,MCC26,MCC26,Skin,Merkel Cell Carcinoma,Merkel Cell Carcinoma,MCC26_SKIN
+ACH-001554,mel-202,MEL202,Eye,Ocular Melanoma,Uveal Melanoma,MEL202_UVEA
+ACH-001555,Mero-14,MERO14,Pleura,Pleural Mesothelioma,"Pleural Mesothelioma, Epithelioid Type",MERO14_PLEURA
+ACH-001556,Mero-25,MERO25,Pleura,Pleural Mesothelioma,"Pleural Mesothelioma, Biphasic Type",MERO25_PLEURA
+ACH-001557,Mero-41,MERO41,Pleura,Pleural Mesothelioma,"Pleural Mesothelioma, Epithelioid Type",MERO41_PLEURA
+ACH-001558,Mero-48a,MERO48A,Pleura,Pleural Mesothelioma,"Pleural Mesothelioma, Biphasic Type",MERO48A_PLEURA
+ACH-001559,Mero-82,MERO82,Pleura,Pleural Mesothelioma,"Pleural Mesothelioma, Epithelioid Type",MERO82_PLEURA
+ACH-001560,Mero-83,MERO83,Pleura,Pleural Mesothelioma,"Pleural Mesothelioma, Biphasic Type",MERO83_PLEURA
+ACH-001562,Mero-95,MERO95,Pleura,Pleural Mesothelioma,"Pleural Mesothelioma, Epithelioid Type",MERO95_PLEURA
+ACH-001563,MM127,MM127,Skin,Melanoma,Melanoma,MM127_SKIN
+ACH-001566,MM370,MM370,Skin,Melanoma,Melanoma,MM370_SKIN
+ACH-001567,MM383,MM383,Skin,Melanoma,Melanoma,MM383_SKIN
+ACH-001568,MM386,MM386,Skin,Melanoma,Melanoma,MM386_SKIN
+ACH-001570,MM426,MM426,Skin,Melanoma,Melanoma,MM426_SKIN
+ACH-001574,MOLM-14,MOLM14,Myeloid,Acute Myeloid Leukemia,Acute Myeloid Leukemia,MOLM14_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001577,MUTZ-8,MUTZ8,Myeloid,Acute Myeloid Leukemia,Acute Myeloid Leukemia,MUTZ8_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001578,NCCIT,NCCIT,Testis,Non-Seminomatous Germ Cell Tumor,Embryonal Carcinoma,NCCIT_TESTIS
+ACH-001603,NH-12,NH12,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,NH12_AUTONOMIC_GANGLIA
+ACH-001605,no.10,NO10,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",NO10_CENTRAL_NERVOUS_SYSTEM
+ACH-001606,no.11,NO11,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",NO11_CENTRAL_NERVOUS_SYSTEM
+ACH-001607,NOZ,NOZ,Biliary Tract,Intracholecystic Papillary Neoplasm,"Gallbladder Adenocarcinoma, NOS",NOZ_LIVER
+ACH-001608,NP 2,NP2,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",NP2_CENTRAL_NERVOUS_SYSTEM
+ACH-001609,NP 3,NP3,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",NP3_CENTRAL_NERVOUS_SYSTEM
+ACH-001610,NP 5,NP5,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",NP5_CENTRAL_NERVOUS_SYSTEM
+ACH-001611,NP 8,NP8,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",NP8_CENTRAL_NERVOUS_SYSTEM
+ACH-001613,OCI-AML4,OCIAML4,Myeloid,Acute Myeloid Leukemia,Acute Myeloid Leukemia,OCIAML4_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001616,OCI-LY18,OCILY18,Lymphoid,Mature B-Cell Neoplasms,"Diffuse Large B-Cell Lymphoma, NOS",OCILY18_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001618,OCI-M2,OCIM2,Myeloid,Acute Myeloid Leukemia,Acute Myeloid Leukemia,OCIM2_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001619,OCUG-1,OCUG1,Biliary Tract,Intracholecystic Papillary Neoplasm,"Gallbladder Adenocarcinoma, NOS",OCUG1_BILIARY_TRACT
+ACH-001622,Onda 7,ONDA7,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",ONDA7_CENTRAL_NERVOUS_SYSTEM
+ACH-001623,Onda 8,ONDA8,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",ONDA8_CENTRAL_NERVOUS_SYSTEM
+ACH-001624,Onda 9,ONDA9,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",ONDA9_CENTRAL_NERVOUS_SYSTEM
+ACH-001625,OSC-19,OSC19,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,OSC19_UPPER_AERODIGESTIVE_TRACT
+ACH-001626,OSC-20,OSC20,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,OSC20_UPPER_AERODIGESTIVE_TRACT
+ACH-001627,P4E6,P4E6,Prostate,Non-Cancerous,"Immortalized Epithelial Cells, Prostate",P4E6_PROSTATE
+ACH-001628,PEA1,PEA1,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,High-Grade Serous Ovarian Cancer,PEA1_OVARY
+ACH-001630,PEO1,PEO1,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Serous Ovarian Cancer,PEO1_OVARY
+ACH-001632,PEO4,PEO4,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Serous Ovarian Cancer,PEO4_OVARY
+ACH-001634,PGA-1,PGA1,Lymphoid,Mature B-Cell Neoplasms,Chronic Lymphocytic Leukemia/Small Lymphocytic Lymphoma,PGA1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001641,SAT,SAT,Head and Neck,Head and Neck Squamous Cell Carcinoma,Head and Neck Squamous Cell Carcinoma,SAT_UPPER_AERODIGESTIVE_TRACT
+ACH-001642,SCC-3,SCC3,Lymphoid,Non-Hodgkin Lymphoma,Mature B-Cell Neoplasms,SCC3_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001645,SEKI,SEKI,Skin,Melanoma,Melanoma,SEKI_SKIN
+ACH-001647,SHI-1,SHI1,Myeloid,Acute Myeloid Leukemia,Acute Myeloid Leukemia,SHI1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001648,Shmac 4,SHMAC4,Prostate,Non-Cancerous,"Immortalized Epithelial Cells, Prostate",SHMAC4_PROSTATE
+ACH-001649,Shmac 5,SHMAC5,Prostate,Non-Cancerous,"Immortalized Epithelial Cells, Prostate",SHMAC5_PROSTATE
+ACH-001650,SISO,SISO,Cervix,Cervical Adenocarcinoma,Cervical Adenocarcinoma,SISO_CERVIX
+ACH-001651,SKG-I,SKGI,Cervix,Cervical Squamous Cell Carcinoma,Cervical Squamous Cell Carcinoma,SKGI_ENDOMETRIUM
+ACH-001652,SKG-II,SKGII,Cervix,Cervical Squamous Cell Carcinoma,Cervical Squamous Cell Carcinoma,SKGII_ENDOMETRIUM
+ACH-001653,SK-GT-2,SKGT2,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Stomach Adenocarcinoma,SKGT2_STOMACH
+ACH-001654,SK-GT-4,SKGT4,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Esophageal Adenocarcinoma,SKGT4_OESOPHAGUS
+ACH-001655,SKN,SKN,Uterus,Uterine Sarcoma/Mesenchymal,Uterine Leiomyosarcoma,SKN_ENDOMETRIUM
+ACH-001656,SKNO-1,SKNO1,Myeloid,Acute Myeloid Leukemia,Acute Myeloid Leukemia,SKNO1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001662,SNU-2372,SNU2372,Breast,Invasive Breast Carcinoma,"Breast Invasive Cancer, NOS",SNU2372_BREAST
+ACH-001664,SNU-638,SNU638,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Stomach Adenocarcinoma,SNU638_STOMACH
+ACH-001668,SUSA,SUSA,Testis,Non-Seminomatous Germ Cell Tumor,Teratoma,SUSA_TESTIS
+ACH-001669,TANOUE,TANOUE,Lymphoid,B-Cell Acute Lymphoblastic Leukemia,B-Cell Acute Lymphoblastic Leukemia,TANOUE_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001670,TASK1,TASK1,CNS/Brain,Embryonal Tumor,Primitive Neuroectodermal Tumor,TASK1_CENTRAL_NERVOUS_SYSTEM
+ACH-001673,TFK-1,TFK1,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Extrahepatic Cholangiocarcinoma,TFK1_BILIARY_TRACT
+ACH-001674,TGW,TGW,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,TGW_AUTONOMIC_GANGLIA
+ACH-001675,TR146,TR146,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,TR146_UPPER_AERODIGESTIVE_TRACT
+ACH-001676,Ty-82,TY82,Head and Neck,"Head and Neck Carcinoma, Other",NUT Midline Carcinoma of the Head and Neck,TY82_UPPER_AERODIGESTIVE_TRACT
+ACH-001677,U-2904,U2904,Lymphoid,Mature B-Cell Neoplasms,"Diffuse Large B-Cell Lymphoma, NOS",U2904_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001683,ACC-3133,UACC3133,Breast,Invasive Breast Carcinoma,Breast Invasive Lobular Carcinoma,UACC3133_BREAST
+ACH-001685,U-HO1,UHO1,Lymphoid,Hodgkin Lymphoma,Hodgkin Lymphoma,UHO1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001687,UM-RC-3,UMRC3,Kidney,Renal Cell Carcinoma,Renal Clear Cell Carcinoma,UMRC3_KIDNEY
+ACH-001688,UM-RC-7,UMRC7,Kidney,Renal Cell Carcinoma,Renal Cell Carcinoma,UMRC7_KIDNEY
+ACH-001690,UPCI-SCC-026,UPCISCC026,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,UPCISCC026_UPPER_AERODIGESTIVE_TRACT
+ACH-001691,UPCI-SCC-029A,UPCISCC029A,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,UPCISCC029A_UPPER_AERODIGESTIVE_TRACT
+ACH-001692,UPCI-SCC-040,UPCISCC040,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,UPCISCC040_UPPER_AERODIGESTIVE_TRACT
+ACH-001694,UPCI-SCC-074,UPCISCC074,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,UPCISCC074_UPPER_AERODIGESTIVE_TRACT
+ACH-001695,UPCI-SCC-099,UPCISCC099,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,UPCISCC099_UPPER_AERODIGESTIVE_TRACT
+ACH-001696,UPCI-SCC-111,UPCISCC111,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,UPCISCC111_UPPER_AERODIGESTIVE_TRACT
+ACH-001698,UPCI-SCC-116,UPCISCC116,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,UPCISCC116_UPPER_AERODIGESTIVE_TRACT
+ACH-001699,UPCI-SCC-131,UPCISCC131,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,UPCISCC131_UPPER_AERODIGESTIVE_TRACT
+ACH-001701,UPCI-SCC-200,UPCISCC200,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,UPCISCC200_UPPER_AERODIGESTIVE_TRACT
+ACH-001702,VA-ES-BJ,VAESBJ,Soft Tissue,Epithelioid Sarcoma,Epithelioid Sarcoma,VAESBJ_SOFT_TISSUE
+ACH-001707,WA-OSEL,WAOSEL,Lymphoid,Mature B-Cell Neoplasms,Chronic Lymphocytic Leukemia/Small Lymphocytic Lymphoma,WAOSEL_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001709,WSU-NHL,WSUNHL,Lymphoid,Mature B-Cell Neoplasms,"Diffuse Large B-Cell Lymphoma, NOS",WSUNHL_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001711,PFSK-1,PFSK1,CNS/Brain,Embryonal Tumor,Primitive Neuroectodermal Tumor,PFSK1_CENTRAL_NERVOUS_SYSTEM
+ACH-001715,CAL-72,CAL72,Bone,Osteosarcoma,Osteosarcoma,CAL72_BONE
+ACH-001719,OCI-C4P,OCIC4P,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Clear Cell Ovarian Cancer,OCIC4P_OVARY
+ACH-001735,SEMK2,SEMK2,Lymphoid,B-Cell Acute Lymphoblastic Leukemia,B-Cell Acute Lymphoblastic Leukemia,SEMK2_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001736,HB11;19,HB1119,Lymphoid,B-Cell Acute Lymphoblastic Leukemia,B-Cell Acute Lymphoblastic Leukemia,HB1119_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001737,CCRF-HSB-2-DM,CCRFHSB2DM,Lymphoid,T-Lymphoblastic Leukemia/Lymphoma,T-Cell Acute Lymphoblastic Leukemia,CTV1DM_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001740,RH28,RH28,Soft Tissue,Rhabdomyosarcoma,Alveolar Rhabdomyosarcoma,RH28_SOFT_TISSUE
+ACH-001745,RhJT,RHJT,Soft Tissue,Rhabdomyosarcoma,Alveolar Rhabdomyosarcoma,RHJT_SOFT_TISSUE
+ACH-001750,TTC442,TTC442,Soft Tissue,Rhabdomyosarcoma,Embryonal Rhabdomyosarcoma,TTC442_SOFT_TISSUE
+ACH-001765,Rh4,RH4,Soft Tissue,Rhabdomyosarcoma,Alveolar Rhabdomyosarcoma,RH4_SOFT_TISSUE
+ACH-001786,SNU-1544,SNU1544,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,SNU1544_LARGE_INTESTINE
+ACH-001791,LPS6,LPS6,Soft Tissue,Liposarcoma,Liposarcoma,LPS6_SOFT_TISSUE
+ACH-001793,LPS27,LPS27,Soft Tissue,Liposarcoma,Liposarcoma,LPS27_SOFT_TISSUE
+ACH-001794,93T449,93T449,Soft Tissue,Liposarcoma,Well-Differentiated Liposarcoma,93T449_SOFT_TISSUE
+ACH-001795,94T778,94T778,Soft Tissue,Liposarcoma,Well-Differentiated Liposarcoma,94T778_SOFT_TISSUE
+ACH-001796,95T1000,95T1000,Soft Tissue,Liposarcoma,Well-Differentiated Liposarcoma,95T1000_SOFT_TISSUE
+ACH-001799,LPS141,LPS141,Soft Tissue,Liposarcoma,Dedifferentiated Liposarcoma,LPS141_SOFT_TISSUE
+ACH-001802,LPS853,LPS853,Soft Tissue,Liposarcoma,Dedifferentiated Liposarcoma,LPS853_SOFT_TISSUE
+ACH-001804,LPS510,LPS510,Soft Tissue,Liposarcoma,Dedifferentiated Liposarcoma,LPS510_SOFT_TISSUE
+ACH-001814,OS252,OS252,Bone,Osteosarcoma,Osteosarcoma,OS252_BONE
+ACH-001819,MFM-223,MFM223,Breast,Invasive Breast Carcinoma,Breast Invasive Ductal Carcinoma,MFM223_BREAST
+ACH-001820,COLO 824,COLO824,Breast,"Breast Neoplasm, NOS","Breast Neoplasm, NOS",COLO824_BREAST
+ACH-001834,MGH-ICC10,MGHICC10,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Intrahepatic Cholangiocarcinoma,ICC10_BILIARY_TRACT
+ACH-001835,MGH-ICC10-6,MGHICC106,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Intrahepatic Cholangiocarcinoma,ICC106_BILIARY_TRACT
+ACH-001836,MGH-ICC10-8,MGHICC108,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Intrahepatic Cholangiocarcinoma,ICC108_BILIARY_TRACT
+ACH-001838,MGH-ICC12,MGHICC12,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Intrahepatic Cholangiocarcinoma,ICC12_BILIARY_TRACT
+ACH-001839,MGH-ICC13-7,MGHICC137,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Intrahepatic Cholangiocarcinoma,ICC137_BILIARY_TRACT
+ACH-001841,MGH-ECC3,MGHECC3,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Extrahepatic Cholangiocarcinoma,ICC15_BILIARY_TRACT
+ACH-001842,MGH-ICC2,MGHICC2,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Intrahepatic Cholangiocarcinoma,ICC2_BILIARY_TRACT
+ACH-001843,MGH-ECC4,MGHECC4,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Extrahepatic Cholangiocarcinoma,ICC3_BILIARY_TRACT
+ACH-001844,MGH-ICC4,MGHICC4,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Intrahepatic Cholangiocarcinoma,ICC4_BILIARY_TRACT
+ACH-001848,MGH-ICC8,MGHICC8,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Intrahepatic Cholangiocarcinoma,ICC8_BILIARY_TRACT
+ACH-001849,MGH-ICC9,MGHICC9,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Intrahepatic Cholangiocarcinoma,ICC9_BILIARY_TRACT
+ACH-001850,G415,G415,Biliary Tract,Intracholecystic Papillary Neoplasm,"Gallbladder Adenocarcinoma, NOS",G415_BILIARY_TRACT
+ACH-001852,HKGZ-CC,HKGZCC,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Intrahepatic Cholangiocarcinoma,HKGZCC_BILIARY_TRACT
+ACH-001853,KMCH-1,KMCH1,Liver,Hepatocellular Carcinoma plus Intrahepatic Cholangiocarcinoma,Hepatocellular Carcinoma plus Intrahepatic Cholangiocarcinoma,KMCH1_BILIARY_TRACT
+ACH-001856,RBE,RBE,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Intrahepatic Cholangiocarcinoma,RBE_BILIARY_TRACT
+ACH-001857,SG231,SG231,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Intrahepatic Cholangiocarcinoma,SG231_BILIARY_TRACT
+ACH-001858,SSP-25,SSP25,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Intrahepatic Cholangiocarcinoma,SSP25_BILIARY_TRACT
+ACH-001861,TGBC1TKB,TGBC1TKB,Biliary Tract,Intracholecystic Papillary Neoplasm,Gallbladder Cancer,TGBC1TKB_BILIARY_TRACT
+ACH-001862,TGBC52TKB,TGBC52TKB,Ampulla of Vater,Ampullary Carcinoma,Ampullary Carcinoma,TGBC52TKB_BILIARY_TRACT
+ACH-001863,TKKK,TKKK,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Intrahepatic Cholangiocarcinoma,TKKK_BILIARY_TRACT
+ACH-001864,YSCCC,YSCCC,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Intrahepatic Cholangiocarcinoma,YSCCC_BILIARY_TRACT
+ACH-001959,CC-LP-1,CCLP1,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Intrahepatic Cholangiocarcinoma,CCLP1_BILIARY_TRACT
+ACH-001960,CC-SW-1,CCSW1,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Intrahepatic Cholangiocarcinoma,CCSW1_BILIARY_TRACT
+ACH-001961,MGH-GB2,MGHGB2,Biliary Tract,Intracholecystic Papillary Neoplasm,Gallbladder Cancer,GB2_BILIARY_TRACT
+ACH-001970,MM253,MM253,Skin,Melanoma,Melanoma,MM253_SKIN
+ACH-001972,MM473,MM473,Skin,Melanoma,Melanoma,MM473_SKIN
+ACH-001973,MM485,MM485,Skin,Melanoma,Melanoma,MM485_SKIN
+ACH-001975,MM576,MM576,Skin,Melanoma,Melanoma,MM576_SKIN
+ACH-001977,NO36,NO36,Pleura,Pleural Mesothelioma,"Pleural Mesothelioma, Epithelioid Type",NO36_LUNG
+ACH-001982,NZM3,NZM3,Skin,Melanoma,Melanoma,NZM3_SKIN
+ACH-001986,NZM42,NZM42,Skin,Melanoma,Melanoma,NZM42_SKIN
+ACH-001990,NZM7,NZM7,Skin,Melanoma,Melanoma,NZM7_SKIN
+ACH-001991,NZOV9,NZOV9,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Endometrioid Ovarian Cancer,NZOV9_OVARY
+ACH-001992,ONE58,ONE58,Pleura,Pleural Mesothelioma,"Pleural Mesothelioma, Epithelioid Type",ONE58_LUNG
+ACH-001993,NALM-16,NALM16,Lymphoid,B-Cell Acute Lymphoblastic Leukemia,B-Cell Acute Lymphoblastic Leukemia,NALM16_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-001997,MGH-AOVC1,MGHAOVC1,Ampulla of Vater,Ampullary Carcinoma,Ampullary Carcinoma,ECC2_BILIARY_TRACT
+ACH-001999,950-5-BIK,9505BIK,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,9505BIK_PANCREAS
+ACH-002001,A-375_DAB_TRAM_R,A375DABTRAMR,Skin,Melanoma,Melanoma,A375_SKIN_CJ1_RESISTANT
+ACH-002002,A-375_SCH772984_R,A375SCH772984R,Skin,Melanoma,Melanoma,A375_SKIN_CJ2_RESISTANT
+ACH-002003,A-375_DAB_R,A375DABR,Skin,Melanoma,Melanoma,A375_SKIN_CJ3_RESISTANT
+ACH-002004,UACC-62_DAB_TRAM_R,UACC62DABTRAMR,Skin,Melanoma,Melanoma,UACC62_SKIN_CJ1_RESISTANT
+ACH-002005,SK-MEL-19,SKMEL19,Skin,Melanoma,Cutaneous Melanoma,SKMEL19_SKIN
+ACH-002014,Mel270,MEL270,Eye,Ocular Melanoma,Uveal Melanoma,MEL270_UVEA
+ACH-002015,Mel285,MEL285,Eye,Ocular Melanoma,Uveal Melanoma,MEL285_UVEA
+ACH-002016,Mel290,MEL290,Eye,Ocular Melanoma,Uveal Melanoma,MEL290_UVEA
+ACH-002018,Omm2.5,OMM25,Eye,Ocular Melanoma,Uveal Melanoma,OMM25_UVEA
+ACH-002019,HOKUG,HOKUG,Cervix,Glassy Cell Carcinoma of the Cervix,Glassy Cell Carcinoma of the Cervix,HOKUG_CERVIX
+ACH-002020,SKG-IIIa,SKGIIIA,Cervix,Cervical Squamous Cell Carcinoma,Cervical Squamous Cell Carcinoma,SKGIIIA_CERVIX
+ACH-002021,T3M-3,T3M3,Uterus,Gestational Trophoblastic Disease,Choriocarcinoma,T3M3_PLACENTA
+ACH-002023,TGBC18TKB,TGBC18TKB,Ampulla of Vater,Ampullary Carcinoma,Ampullary Carcinoma,TGBC18TKB_LARGE_INTESTINE
+ACH-002024,ECC4,ECC4,Bowel,Colorectal Adenocarcinoma,Rectal Adenocarcinoma,ECC4_LARGE_INTESTINE
+ACH-002025,TT1TKB,TT1TKB,Bowel,Colorectal Adenocarcinoma,Rectal Adenocarcinoma,TT1TKB_LARGE_INTESTINE
+ACH-002026,HHUA,HHUA,Uterus,Endometrial Carcinoma,Endometrial Carcinoma,HHUA_ENDOMETRIUM
+ACH-002027,HOUA-I,HOUAI,Uterus,Endometrial Carcinoma,Endometrial Carcinoma,HOUAI_ENDOMETRIUM
+ACH-002029,SAS,SAS,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,SAS_UPPER_AERODIGESTIVE_TRACT
+ACH-002030,Sa3,SA3,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,SA3_UPPER_AERODIGESTIVE_TRACT
+ACH-002033,HMMME,HMMME,Pleura,Pleural Mesothelioma,"Pleural Mesothelioma, Epithelioid Type",HMMME_LUNG
+ACH-002035,LCAM1,LCAM1,Lung,Non-Small Cell Lung Cancer,Poorly Differentiated Non-Small Cell Lung Cancer,LCAM1_LUNG
+ACH-002039,PK-8,PK8,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,PK8_PANCREAS
+ACH-002040,HMV-II,HMVII,Vulva/Vagina,Mucosal Melanoma of the Vulva/Vagina,Mucosal Melanoma of the Vulva/Vagina,HMVII_SKIN
+ACH-002041,HOTHC,HOTHC,Thyroid,Anaplastic Thyroid Cancer,Anaplastic Thyroid Cancer,HOTHC_THYROID
+ACH-002042,T3M-5,T3M5,Head and Neck,Head and Neck Squamous Cell Carcinoma,Head and Neck Squamous Cell Carcinoma,T3M5_THYROID
+ACH-002043,Ca9-22,CA922,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,CA922_UPPER_AERODIGESTIVE_TRACT
+ACH-002044,HSQ-89,HSQ89,Head and Neck,Head and Neck Squamous Cell Carcinoma,Sinonasal Squamous Cell Carcinoma,HSQ89_UPPER_AERODIGESTIVE_TRACT
+ACH-002045,HO-1-u-1,HO1U1,Head and Neck,Head and Neck Squamous Cell Carcinoma,Oral Cavity Squamous Cell Carcinoma,HO1U1_UPPER_AERODIGESTIVE_TRACT
+ACH-002046,HTMMT,HTMMT,Uterus,Endometrial Carcinoma,Uterine Carcinosarcoma/Uterine Malignant Mixed Mullerian Tumor,HTMMT_ENDOMETRIUM
+ACH-002048,RMS-YM,RMSYM,Soft Tissue,Rhabdomyosarcoma,Embryonal Rhabdomyosarcoma,RMSYM_SOFT_TISSUE
+ACH-002051,Lu-134-A,LU134A,Lung,Lung Neuroendocrine Tumor,Small Cell Lung Cancer,LU134A_LUNG
+ACH-002052,Lu-139,LU139,Lung,Lung Neuroendocrine Tumor,Small Cell Lung Cancer,LU139_LUNG
+ACH-002055,TL-1,TL1,Lymphoid,Mature B-Cell Neoplasms,Burkitt Lymphoma,TL1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-002059,P30/OHK,P30OHK,Lymphoid,B-Cell Acute Lymphoblastic Leukemia,B-Cell Acute Lymphoblastic Leukemia,P30OHK_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-002060,MY,MY,Myeloid,Acute Leukemias of Ambiguous Lineage,Acute Leukemias of Ambiguous Lineage,MY_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-002061,P2UR/K-562,P2URK562,Myeloid,Myeloproliferative Neoplasms,"Chronic Myeloid Leukemia, BCR-ABL1+",P2URK562_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-002062,SLVL,SLVL,Lymphoid,Mature B-Cell Neoplasms,Splenic Marginal Zone Lymphoma,SLVL_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-002066,HS-Sch-2,HSSCH2,Peripheral Nervous System,Nerve Sheath Tumor,Malignant Peripheral Nerve Sheath Tumor,HSSCH2_CENTRAL_NERVOUS_SYSTEM
+ACH-002067,NOS-1,NOS1,Bone,Osteosarcoma,Osteosarcoma,NOS1_BONE
+ACH-002069,HS-Os-1,HSOS1,Bone,Osteosarcoma,Osteosarcoma,HSOS1_BONE
+ACH-002070,HKBMM,HKBMM,CNS/Brain,Meningothelial Tumor,Meningioma,HKBMM_CENTRAL_NERVOUS_SYSTEM
+ACH-002077,Lu-165,LU165,Lung,Lung Neuroendocrine Tumor,Small Cell Lung Cancer,LU165_LUNG
+ACH-002080,TN-2,TN2,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,TN2_AUTONOMIC_GANGLIA
+ACH-002084,MMAc,MMAC,Skin,Melanoma,Melanoma,MMAC_SKIN
+ACH-002142,HuO-3N1,HUO3N1,Bone,Osteosarcoma,Osteosarcoma,HUO3N1_BONE
+ACH-002214,BC-1,BC1,Lymphoid,Mature B-Cell Neoplasms,Primary Effusion Lymphoma,BC1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-002215,BC-3,BC3,Lymphoid,Mature B-Cell Neoplasms,Primary Effusion Lymphoma,BC3_PLEURA
+ACH-002283,NB5,NB5,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,NB5_AUTONOMIC_GANGLIA
+ACH-002291,NTERA-2 cl.D1,NTERA2CLD1,Testis,Non-Seminomatous Germ Cell Tumor,Embryonal Carcinoma,NTERA2CLD1_TESTIS
+ACH-002399,21NT,21NT,Breast,Invasive Breast Carcinoma,Breast Invasive Ductal Carcinoma,21NT_BREAST
+ACH-002400,21MT-1,21MT1,Breast,Invasive Breast Carcinoma,Breast Invasive Ductal Carcinoma,21MT1_BREAST
+ACH-002401,21MT-2,21MT2,Breast,Invasive Breast Carcinoma,Breast Invasive Ductal Carcinoma,21MT2_BREAST
+ACH-002433,CCLF_PEDS_0019_T,CCLFPEDS0019T,Bone,Osteosarcoma,Osteosarcoma,CCLFPEDS0019T_BONE
+ACH-002446,CCLF_UPGI_0005_T,CCLFUPGI0005T,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Stomach Adenocarcinoma,CCLFUPGI0005T_STOMACH
+ACH-002458,HT-144_DAB_R,HT144DABR,Skin,Melanoma,Melanoma,HT144_SKIN_FV1_RESISTANT
+ACH-002460,HT-144_DAB_ROX_R,HT144DABROXR,Skin,Melanoma,Melanoma,HT144_SKIN_FV2_RESISTANT
+ACH-002461,RVH421_DAB_R,RVH42DABR,Skin,Melanoma,Melanoma,RVH421_SKIN_FV1_RESISTANT
+ACH-002462,RPE1-ss48,RPE1SS48,Eye,Non-Cancerous,"Immortalized Epithelial Cells, Retinal",RPE1SS48_ENGINEERED
+ACH-002463,RPE1-ss77,RPE1SS77,Eye,Non-Cancerous,"Immortalized Epithelial Cells, Retinal",RPE1SS77_ENGINEERED
+ACH-002464,RPE1-ss6,RPE1SS6,Eye,Non-Cancerous,"Immortalized Epithelial Cells, Retinal",RPE1SS6_ENGINEERED
+ACH-002465,RPE1-ss119,RPE1SS119,Eye,Non-Cancerous,"Immortalized Epithelial Cells, Retinal",RPE1SS119_ENGINEERED
+ACH-002467,RPE1-ss51,RPE1SS51,Eye,Non-Cancerous,"Immortalized Epithelial Cells, Retinal",RPE1SS51_ENGINEERED
+ACH-002470,OS186,OS186,Bone,Osteosarcoma,Osteosarcoma,PSS089_BONE
+ACH-002471,OS052,OS052,Bone,Osteosarcoma,Osteosarcoma,PSS008_BONE
+ACH-002475,HAP1,HAP1,Myeloid,Myeloproliferative Neoplasms,"Chronic Myeloid Leukemia, BCR-ABL1+",HAP1_ENGINEERED
+ACH-002478,BC-2,BC2,Lymphoid,Mature B-Cell Neoplasms,Primary Effusion Lymphoma,BC2_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-002485,MAVER-1,MAVER1,Lymphoid,Mature B-Cell Neoplasms,Mantle Cell Lymphoma,MAVER1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-002486,MES-OV,MESOV,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Serous Ovarian Cancer,MESOV_OVARY
+ACH-002490,NCI-H1882,NCIH1882,Lung,Lung Neuroendocrine Tumor,Small Cell Lung Cancer,NCIH1882_LUNG
+ACH-002499,UACC-3199,UACC3199,Breast,Invasive Breast Carcinoma,Breast Invasive Ductal Carcinoma,UACC3199_BREAST
+ACH-002500,Z-138,Z138,Lymphoid,Mature B-Cell Neoplasms,Mantle Cell Lymphoma,Z138_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-002508,WM3211,WM3211,Skin,Melanoma,Acral Melanoma,WM3211_SKIN
+ACH-002510,M040416,M040416,Skin,Melanoma,Acral Melanoma,M040416_SKIN
+ACH-002511,M104325,M104325,Skin,Melanoma,Melanoma,M140325_SKIN
+ACH-002512,MM160113,MM160113,Skin,Melanoma,Acral Melanoma,MM160113_SKIN
+ACH-002522,SNU-2292,SNU2292,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,SNU2292_LUNG
+ACH-002523,SNU-739,SNU739,Liver,Hepatocellular Carcinoma,Hepatocellular Carcinoma,SNU739_LIVER
+ACH-002524,SNU-251,SNU251,Ovary/Fallopian Tube,Ovarian Epithelial Tumor,Endometrioid Ovarian Cancer,SNU251_OVARY
+ACH-002526,SNU-1327,SNU1327,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,SNU1327_LUNG
+ACH-002528,SNU-267,SNU267,Kidney,Renal Cell Carcinoma,Renal Clear Cell Carcinoma,SNU267_KIDNEY
+ACH-002531,SNU-2535,SNU2535,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,SNU2535_LUNG
+ACH-002533,SNU-482,SNU482,Kidney,Renal Cell Carcinoma,Renal Cell Carcinoma,SNU482_KIDNEY
+ACH-002535,SNU-254,SNU254,Bowel,Colorectal Adenocarcinoma,Rectal Adenocarcinoma,SNU254_LARGE_INTESTINE
+ACH-002538,SNU-1235,SNU1235,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,SNU1235_LARGE_INTESTINE
+ACH-002544,SNU-1750,SNU1750,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Tubular Stomach Adenocarcinoma,SNU1750_STOMACH
+ACH-002647,CCC-5,CCC5,Biliary Tract,Intraductal Papillary Neoplasm of the Bile Duct,Cholangiocarcinoma,CCC5_BILIARY_TRACT
+ACH-002650,ETCC-016,ETCC016,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,ETCC016_LUNG
+ACH-002654,JVE-015,JVE015,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,JVE015_COLON
+ACH-002659,JVE-127,JVE127,Bowel,Colorectal Adenocarcinoma,Mucinous Adenocarcinoma of the Colon and Rectum,JVE127_COLON
+ACH-002660,JVE-187,JVE187,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,JVE187_COLON
+ACH-002662,JVE-207,JVE207,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,JVE207_COLON
+ACH-002664,JVE-253,JVE253,Bowel,Colorectal Adenocarcinoma,Mucinous Adenocarcinoma of the Colon and Rectum,JVE253_COLON
+ACH-002669,KP-363T,KP363T,Bowel,Colorectal Adenocarcinoma,Colon Adenocarcinoma,KP363T_COLON
+ACH-002672,MAPAC-HS-77,MAPACHS77,Pancreas,Pancreatic Adenocarcinoma,Pancreatic Adenocarcinoma,MAPACHS77_PANCREAS
+ACH-002677,U-2946,U2946,Lymphoid,Mature B-Cell Neoplasms,"Diffuse Large B-Cell Lymphoma, NOS",U2946_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-002678,WILL-1,WILL1,Lymphoid,Mature B-Cell Neoplasms,"Diffuse Large B-Cell Lymphoma, NOS",WILL1_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-002680,170-MG-BA,170MGBA,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",170MGBA_CENTRAL_NERVOUS_SYSTEM
+ACH-002681,538-MG-BA,538MGBA,CNS/Brain,Adult-Type Diffuse Glioma,"Glioblastoma, IDH-Wildtype",538MGBA_CENTRAL_NERVOUS_SYSTEM
+ACH-002687,WM3772F,WM3772F,Eye,Ocular Melanoma,Uveal Melanoma,WM3772F_EYE
+ACH-002688,OS457,OS457,Bone,Osteosarcoma,Osteosarcoma,PSS141_BONE
+ACH-002690,OS526,OS526,Bone,Osteosarcoma,Osteosarcoma,PSS112_BONE
+ACH-002693,S462,S462,Peripheral Nervous System,Nerve Sheath Tumor,Malignant Peripheral Nerve Sheath Tumor,S462_SOFT_TISSUE
+ACH-002705,IS076P,IS076P,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Esophageal Adenocarcinoma,IS076P_OESOPHAGUS
+ACH-002706,IS076A,IS076A,Esophagus/Stomach,Esophagogastric Adenocarcinoma,Esophageal Adenocarcinoma,IS076A_OESOPHAGUS
+ACH-002708,DL-221,DL221,Soft Tissue,Liposarcoma,Myxoid/Round-Cell Liposarcoma,DL221_SOFT_TISSUE
+ACH-002709,CMS,CMS,Myeloid,Acute Myeloid Leukemia,Acute Myeloid Leukemia,CMS_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE
+ACH-002710,MPNST-724,MPNST724,Peripheral Nervous System,Nerve Sheath Tumor,Malignant Peripheral Nerve Sheath Tumor,MPNST724_SOFT_TISSUE
+ACH-002711,UM-HACC-2A,UMHACC2A,Head and Neck,Salivary Carcinoma,Adenoid Cystic Carcinoma,UMHACC2A_UPPER_AERODIGESTIVE_TRACT
+ACH-002778,NCC-OS1-X2-C1,NCCOS1X2C1,Bone,Osteosarcoma,Osteosarcoma,NCCOS1X2C1_BONE
+ACH-002780,NCC-ES1-C1,NCCES1C1,Bone,Ewing Sarcoma,Ewing Sarcoma,NCCES1C1_BONE
+ACH-002782,NCC-UPS1-C1,NCCUPS1C1,Soft Tissue,Undifferentiated Pleomorphic Sarcoma/Malignant Fibrous Histiocytoma/High-Grade Spindle Cell Sarcoma,Undifferentiated Pleomorphic Sarcoma/Malignant Fibrous Histiocytoma/High-Grade Spindle Cell Sarcoma,
+ACH-002784,NCC-UPS2-C1,NCCUPS2C1,Soft Tissue,Undifferentiated Pleomorphic Sarcoma/Malignant Fibrous Histiocytoma/High-Grade Spindle Cell Sarcoma,Undifferentiated Pleomorphic Sarcoma/Malignant Fibrous Histiocytoma/High-Grade Spindle Cell Sarcoma,NCCUPS2C1_SOFT_TISSUE
+ACH-002785,NCC-LMS1-C1,NCCLMS1C1,Soft Tissue,Leiomyosarcoma,Leiomyosarcoma,
+ACH-002792,NCC-CCS1B-C1,NCCCCS1BC1,Soft Tissue,Clear Cell Sarcoma,Clear Cell Sarcoma,NCCCCS1BC1_Sarcoma_Clear_Cell
+ACH-002799,NCC-MPNST1-C1,NCCMPNST1C1,Peripheral Nervous System,Nerve Sheath Tumor,Malignant Peripheral Nerve Sheath Tumor,
+ACH-002800,NCC-MPNST2-C1,NCCMPNST2C1,Peripheral Nervous System,Nerve Sheath Tumor,Malignant Peripheral Nerve Sheath Tumor,
+ACH-002801,NCC-MPNST3-C1,NCCMPNST3C1,Peripheral Nervous System,Nerve Sheath Tumor,Malignant Peripheral Nerve Sheath Tumor,NCCMPNST3C1_MPNST
+ACH-002806,TB096,TB096,CNS/Brain,Adult-Type Diffuse Glioma,"Astrocytoma, IDH-Mutant",TB096_BRAIN
+ACH-002834,OS384,OS384,Bone,Osteosarcoma,Osteosarcoma,PSS131R_Osteosarcoma
+ACH-002847,YUHOIN,YUHOIN,Skin,Melanoma,Melanoma,YUHOIN0650_Melanoma_Skin
+ACH-002922,SK-N-MM,SKNMM,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,SKNMM_BRAIN_BONE
+ACH-002923,LAI-5S,LAI5S,Peripheral Nervous System,Neuroblastoma,Neuroblastoma,LAI5S_Neuro
+ACH-002925,UPMM3,UPMM3,Eye,Ocular Melanoma,Uveal Melanoma,
+ACH-002926,UPMD1,UPMD1,Eye,Ocular Melanoma,Uveal Melanoma,UPMD1_Melanoma_Eye
+ACH-002928,MM100511,MM100511,Skin,Melanoma,Acral Melanoma,
+ACH-003012,A549_CRAF_KD,A549CRAFKD,Lung,Non-Small Cell Lung Cancer,Lung Adenocarcinoma,A549H3_Lung
+ACH-003064,TE 130.T,TE130T,Bone,Other,Sacrococcygeal teratoma,TE130T_BONE
+ACH-003065,CHLA-02-ATRT,CHLA02ATRT,CNS/Brain,Embryonal Tumor,Atypical Teratoid/Rhabdoid Tumor,CHLA02ATRT_BRAIN
+ACH-003171,NRH-OS1,NRHOS1,Bone,Osteosarcoma,Osteoblastic Osteosarcoma,NRH-OS1
+ACH-003176,NRH-GCT1,NRHGCT1,Bone,Osteosarcoma,Osteosarcoma,NRH-GCT1
+ACH-003177,NRH-UPS1,NRHUPS1,Soft Tissue,Undifferentiated Pleomorphic Sarcoma/Malignant Fibrous Histiocytoma/High-Grade Spindle Cell Sarcoma,Undifferentiated Pleomorphic Sarcoma/Malignant Fibrous Histiocytoma/High-Grade Spindle Cell Sarcoma,NRH-UPS1
+ACH-003178,NRH-OS2,NRHOS2,Bone,Osteosarcoma,Osteosarcoma,NRH-OS2
+ACH-003180,NRH-UPS2,NRHUPS2,Soft Tissue,Undifferentiated Pleomorphic Sarcoma/Malignant Fibrous Histiocytoma/High-Grade Spindle Cell Sarcoma,Undifferentiated Pleomorphic Sarcoma/Malignant Fibrous Histiocytoma/High-Grade Spindle Cell Sarcoma,NRH-UPS2
+ACH-003184,NRH-LMS2,NRHLMS2,Soft Tissue,Leiomyosarcoma,Leiomyosarcoma,NRH-LMS2
+ACH-003185,NRH-OS4,NRHOS4,Bone,Osteosarcoma,Osteosarcoma,NRH-OS4
+ACH-003186,NRH-UPS3,NRHUPS3,Soft Tissue,Undifferentiated Pleomorphic Sarcoma/Malignant Fibrous Histiocytoma/High-Grade Spindle Cell Sarcoma,Undifferentiated Pleomorphic Sarcoma/Malignant Fibrous Histiocytoma/High-Grade Spindle Cell Sarcoma,NRH-UPS3
+ACH-003189,NRH-LS3,NRHLS3,Soft Tissue,Liposarcoma,Dedifferentiated Liposarcoma,NRH-LS3
+ACH-003190,NRH-UPS7,NRHUPS7,Soft Tissue,Undifferentiated Pleomorphic Sarcoma/Malignant Fibrous Histiocytoma/High-Grade Spindle Cell Sarcoma,Undifferentiated Pleomorphic Sarcoma/Malignant Fibrous Histiocytoma/High-Grade Spindle Cell Sarcoma,NRH-UPS7
+ACH-003191,NRH-GCT2,NRHGCT2,Bone,Giant Cell Tumor of Bone,Giant Cell Tumor of Bone,NRH-GCT2
+ACH-003273,CHRF-288-11,CHRF28811,Myeloid,Acute Myeloid Leukemia,Acute Myeloid Leukemia,
+ACH-003410,U-CHCF365,UCHCF365,Bone,Chordoma,Dedifferentiated Chordoma,
+ACH-003573,C337,C337,Bone,Osteosarcoma,Osteosarcoma,
+ACH-003587,531MII,531MII,Bone,Osteosarcoma,Osteosarcoma,
+ACH-003590,YCUB-2,YCUB2,Lymphoid,B-Cell Acute Lymphoblastic Leukemia,B-Cell Acute Lymphoblastic Leukemia,

@@ -1,0 +1,122 @@
+# Configuration for Problem 1: Mitochondrial Expression Module Indicators
+# All tunable parameters are defined here.
+
+# Paths (relative to project root)
+paths:
+  data_dir: "数据文件"
+  features_dir: "数据文件/features"
+  labels_dir: "数据文件/labels"
+  metadata_dir: "数据文件/metadata"
+  submission_dir: "数据文件/submission"
+  output_dir: "outputs"
+
+# Module definition (Stage 1)
+modules:
+  K: 14
+  include_pathway_level: true  # Also output 149 pathway-level scores
+
+# Evidence weights for EWM (Stage 3, Method A)
+evidence_weights:
+  enabled: true
+  scores:
+    targetp: true
+    mito_domain: true
+    coexpression_gnf_n50: true
+    msms: true
+    yeast_homolog: true
+    rickettsia_homolog: true
+    pgc_induction: false       # ~25% missing, excluded
+  range: [0.8, 1.2]            # Weight mapping range
+
+# Gene set refinement (Stage 2, optional)
+gene_set_refinement:
+  enabled: false               # Default off: prefer biological annotations
+  sparsity_threshold: 0.1
+  elasticnet_alpha: 0.5
+  min_genes_after_refinement: 5
+
+# Ensemble weights (Stage 3)
+ensemble:
+  gamma_ewm: 0.50
+  gamma_res: 0.25
+  gamma_spca: 0.25
+
+# Orthogonalization (Stage 4)
+orthogonalization:
+  method: "lowdin"             # "lowdin" | "partial" | "none" | "zca"
+  partial_corr_threshold: 0.7
+
+# Cell death module enhancement (Ref: Glover et al. 2024)
+cell_death:
+  module_index: 12             # CELL_DEATH module index
+  enhancement_alpha: 0.25      # Weight boost factor (1+α) in ensemble fusion
+  nonlinear_knockout: false    # Use sigmoid threshold for knockout response
+  nonlinear_beta: 5.0          # Sigmoid steepness
+  nonlinear_threshold_percentile: 75  # Percentile for activation threshold
+
+# Knockout simulation (Stage 5)
+knockout:
+  zero_mode: "mean"            # "mean" (z=0) | "min" (lowest observed)
+  compute_res: true            # Recompute RES after knockout
+
+# Derived indicators (pathway imbalance indices)
+derived_indicators:
+  enabled: true
+  include_bcl2_balance: true
+  include_assembly_stress: true
+  include_mtdna_tcr: true      # Transcription-replication coupling
+
+# Lineage-conditioned indicators
+lineage_conditioned:
+  enabled: true
+  min_samples_per_lineage: 5
+
+# ── Problem 2: Gene dependency prediction ─────────────────────────────
+prediction:
+  # Feature engineering
+  features:
+    pathway_pca_components: 20
+    include_res_delta: false       # Δ_RES via prefix-sum trick (expensive, default off)
+
+  # Model hyperparameters
+  models:
+    model_a:
+      max_iter: 400
+      learning_rate: 0.05
+      max_leaf_nodes: 63
+      min_samples_leaf: 40
+      l2_regularization: 1.0
+      max_features: 0.8
+    model_b:
+      max_iter: 400
+      learning_rate: 0.05
+      max_leaf_nodes: 63
+      min_samples_leaf: 40
+      l2_regularization: 1.0
+      max_features: 0.8
+
+  # Model blending
+  blending:
+    alpha_a: 0.5                   # Model A weight in rank blending
+    alpha_b: 0.5                   # Model B weight (zeroed for cold-start genes)
+    alpha_c: 0.0                   # Model C weight (pairwise ranking, default off)
+
+  # Calibration
+  calibration:
+    alphas: [0.1, 1.0, 10.0, 100.0, 1000.0]
+    clip_range: [-3.0, 5.0]
+
+  # Baselines
+  baselines:
+    prior_weight: 10.0             # Empirical Bayes shrinkage strength
+    svd_k: 20                      # Latent dimensions for SVD factorization
+    knn_k: 20                      # Neighbors for collaborative filtering
+    gene_teacher_n_folds: 5        # CV folds for gene baseline teacher
+
+  # Cross-validation
+  validation:
+    n_folds: 5
+    protocols: ["gene", "cell"]    # "gene" = group-by-gene, "cell" = group-by-cell
+
+  # Output
+  output_dir: "outputs/prediction"
