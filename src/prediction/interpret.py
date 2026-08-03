@@ -1,9 +1,12 @@
 """Model interpretability and explainability outputs for Problem 2.
 
-All outputs are derived from interpretable white-box models:
-  - Feature importance from ElasticNet coefficients, PCA-Ridge back-mapping
-  - Factor Analysis gene loadings per latent factor
-  - Gene baseline decomposition via RidgeCV teacher
+All outputs are derived from interpretable formula-based models:
+  - Gene essentiality formula coefficients
+  - Cell vulnerability formula coefficients
+  - Module×Indicator interaction coefficients
+  - Expression→Dependency effect curve
+  - Human-readable formula printout
+  - Gene baseline decomposition via teacher model
   - Context-specificity analysis (lineage × module)
   - Cell-level module dependency profiles
   - Case studies
@@ -17,8 +20,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import ElasticNet
-from sklearn.preprocessing import StandardScaler
 
 from .features import build_all_features
 from .baselines import (
@@ -26,9 +27,11 @@ from .baselines import (
     build_collaborative_features,
     train_gene_baseline_teacher,
 )
-from .whitebox import (
-    FactorAnalysisModel, SparseElasticNetModel, PCARidgeModel,
-    SplineGAMModel, RidgeBlend,
+from .formula import (
+    GeneEssentialityFormula, CellVulnerabilityFormula,
+    ModuleInteractionFormula, ExpressionEffectFormula,
+    ModuleMatchFormula, EvidenceWeightedFormula,
+    InteractionBlend,
 )
 
 
@@ -36,7 +39,7 @@ def generate_all_interpretations(
     pred_result: dict[str, Any],
     config: dict[str, Any],
 ) -> dict[str, Any]:
-    """Generate all interpretability outputs from white-box models.
+    """Generate all interpretability outputs from formula-based models.
 
     Args:
         pred_result: output from run_prediction().
@@ -49,164 +52,218 @@ def generate_all_interpretations(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     models = pred_result["models"]
-    components = models.get("components", {})
-    blend = models.get("blend")
 
     # Reload data for analysis
     print("  Loading data for interpretation...")
     data_dir = Path(config["paths"]["data_dir"])
     labels = pd.read_csv(data_dir / "labels" / "gene_dependency.csv")
-    cell_meta = pd.read_csv(data_dir / "metadata" / "cell_line_metadata.csv")
 
     # Build features
     print("  Building features...")
     X, meta = build_all_features(
         labels[["cell_line_id", "perturbation_gene"]], config,
     )
-    gene_bl = shrink_gene_means(labels)
-    cell_bl = shrink_cell_means(labels)
-    g5 = build_collaborative_features(
-        labels[["cell_line_id", "perturbation_gene"]], gene_bl, cell_bl,
-    )
-    for col in g5.columns:
-        X[col] = g5[col].values if col not in X.columns else X[col]
 
     results = {}
 
-    # 1. Component blend weights (key interpretability output)
-    print("  1. Component blend weights...")
-    results["blend_weights"] = _blend_weights(blend, output_dir)
+    # 1. Complete formula printout
+    print("  1. Formula printout...")
+    results["formula_printout"] = _formula_printout(models, output_dir)
 
-    # 2. ElasticNet feature importance
-    enet_model = components.get("elasticnet", {}).get("model")
-    if enet_model is not None:
-        print("  2. ElasticNet feature importance...")
-        results["elasticnet_importance"] = _elasticnet_importance(enet_model, output_dir)
+    # 2. Gene essentiality feature importance
+    gene_formula = models.get("gene_formula")
+    if gene_formula is not None:
+        print("  2. Gene essentiality coefficients...")
+        results["gene_formula"] = _gene_formula_importance(gene_formula, output_dir)
 
-    # 3. PCA-Ridge feature importance
-    pca_model = components.get("pca_ridge", {}).get("model")
-    if pca_model is not None:
-        print("  3. PCA-Ridge feature importance...")
-        results["pca_ridge_importance"] = _pca_ridge_importance(pca_model, output_dir)
+    # 3. Cell vulnerability feature importance
+    cell_formula = models.get("cell_formula")
+    if cell_formula is not None:
+        print("  3. Cell vulnerability coefficients...")
+        results["cell_formula"] = _cell_formula_importance(cell_formula, output_dir)
 
-    # 4. Factor Analysis gene loadings
-    fa_model = components.get("factor_analysis", {}).get("model")
-    if fa_model is not None:
-        print("  4. Factor Analysis gene loadings...")
-        results["fa_loadings"] = _fa_loadings(fa_model, output_dir)
+    # 4. Module×Indicator interaction coefficients
+    i_mod = models.get("i_mod_formula")
+    if i_mod is not None:
+        print("  4. Module×Indicator interaction coefficients...")
+        results["module_interaction"] = _module_interaction_coefficients(i_mod, output_dir)
 
-    # 5. Spline-GAM partial dependence
-    spline_model = components.get("spline_gam", {}).get("model")
-    if spline_model is not None:
-        print("  5. Spline-GAM partial dependence...")
-        results["spline_gam"] = _spline_partial_dependence(spline_model, output_dir)
+    # 5. Expression→Dependency effect curve
+    i_expr = models.get("i_expr_formula")
+    if i_expr is not None:
+        print("  5. Expression effect curve...")
+        results["expr_effect"] = _expression_effect_curve(i_expr, output_dir)
 
-    # 6. Gene baseline decomposition
-    print("  6. Gene baseline decomposition...")
+    # 6. Interaction blend weights
+    blend = models.get("interaction_blend")
+    if blend is not None:
+        print("  6. Interaction blend weights...")
+        results["blend_weights"] = _blend_weights(blend, output_dir)
+
+    # 7. Gene baseline decomposition
+    print("  7. Gene baseline decomposition...")
     results["gene_baseline"] = _gene_baseline_decomposition(meta, labels, config, output_dir)
 
-    # 7. Context-specificity analysis
-    print("  7. Context-specificity analysis...")
+    # 8. Context-specificity analysis
+    print("  8. Context-specificity analysis...")
+    cell_meta = pd.read_csv(data_dir / "metadata" / "cell_line_metadata.csv")
     results["context"] = _context_specificity(pred_result, labels, cell_meta,
                                                meta, output_dir)
 
-    # 8. Cell module dependency profiles
-    print("  8. Cell module dependency profiles...")
+    # 9. Cell module dependency profiles
+    print("  9. Cell module dependency profiles...")
     results["cell_module"] = _cell_module_profiles(pred_result, labels, meta, output_dir)
 
-    # 9. Case studies
-    print("  9. Case studies...")
+    # 10. Case studies
+    print("  10. Case studies...")
     results["case_studies"] = _case_studies(pred_result, labels, meta, output_dir)
 
     return results
 
 
-# ── White-box component interpretability ────────────────────────────────────
+# ── Formula model interpretability ──────────────────────────────────────────
 
-def _blend_weights(blend: RidgeBlend | None, output_dir: Path) -> str:
-    """Export RidgeCV blend weights showing component contributions."""
-    if blend is None:
-        return ""
-    weights = blend.get_component_weights()
+def _formula_printout(models: dict, output_dir: Path) -> str:
+    """Save complete human-readable formula to file."""
+    lines = []
+    lines.append("=" * 70)
+    lines.append("GENE DEPENDENCY PREDICTION FORMULA")
+    lines.append("=" * 70)
+    lines.append("")
+    lines.append("ŷ(c,g) = μ̂_g + β̂_c + Blend[I_mod, I_expr, I_match, I_ew]")
+    lines.append("")
+
+    gene_formula = models.get("gene_formula")
+    if gene_formula is not None:
+        lines.append("─" * 70)
+        lines.append("GENE ESSENTIALITY μ̂_g:")
+        lines.append(gene_formula.formula_str(top_n=10))
+        lines.append("")
+
+    cell_formula = models.get("cell_formula")
+    if cell_formula is not None:
+        lines.append("─" * 70)
+        lines.append("CELL VULNERABILITY β̂_c:")
+        lines.append(cell_formula.formula_str(top_n=10))
+        lines.append("")
+
+    i_mod = models.get("i_mod_formula")
+    if i_mod is not None:
+        lines.append("─" * 70)
+        lines.append("MODULE×INDICATOR INTERACTION I_mod:")
+        lines.append(i_mod.formula_str())
+        lines.append("")
+
+    i_expr = models.get("i_expr_formula")
+    if i_expr is not None:
+        lines.append("─" * 70)
+        lines.append("EXPRESSION EFFECT I_expr:")
+        lines.append(i_expr.formula_str())
+        lines.append("")
+
+    i_match = models.get("i_match_formula")
+    if i_match is not None:
+        lines.append("─" * 70)
+        lines.append("MODULE-MATCH I_match:")
+        lines.append(i_match.formula_str())
+        lines.append("")
+
+    i_ew = models.get("i_ew_formula")
+    if i_ew is not None:
+        lines.append("─" * 70)
+        lines.append("EVIDENCE-WEIGHTED I_ew:")
+        lines.append(i_ew.formula_str())
+        lines.append("")
+
+    blend = models.get("interaction_blend")
+    if blend is not None:
+        lines.append("─" * 70)
+        lines.append("INTERACTION BLEND:")
+        for name, w in blend.get_weights():
+            lines.append(f"  α_{name} = {w:+.4f}")
+        lines.append(f"  intercept = {blend.intercept_:.4f}")
+        lines.append("=" * 70)
+
+    path = output_dir / "prediction_formula.txt"
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+    print(f"    Saved formula to {path}")
+    return str(path)
+
+
+def _gene_formula_importance(
+    gene_formula: GeneEssentialityFormula,
+    output_dir: Path,
+) -> str:
+    """Export gene essentiality formula coefficients."""
+    top = gene_formula.get_top_features(top_n=50)
+    df = pd.DataFrame(top, columns=["feature", "coefficient"])
+    df["abs_coefficient"] = np.abs(df["coefficient"])
+    df = df.sort_values("abs_coefficient", ascending=False)
+    path = output_dir / "gene_essentiality_coefficients.csv"
+    df.to_csv(path, index=False)
+    for _, row in df.head(10).iterrows():
+        print(f"    {row['feature']}: {row['coefficient']:.4f}")
+    return str(path)
+
+
+def _cell_formula_importance(
+    cell_formula: CellVulnerabilityFormula,
+    output_dir: Path,
+) -> str:
+    """Export cell vulnerability formula coefficients."""
+    top = cell_formula.get_top_features(top_n=50)
+    df = pd.DataFrame(top, columns=["feature", "coefficient"])
+    df["abs_coefficient"] = np.abs(df["coefficient"])
+    df = df.sort_values("abs_coefficient", ascending=False)
+    path = output_dir / "cell_vulnerability_coefficients.csv"
+    df.to_csv(path, index=False)
+    for _, row in df.head(10).iterrows():
+        print(f"    {row['feature']}: {row['coefficient']:.4f}")
+    return str(path)
+
+
+def _module_interaction_coefficients(
+    i_mod: ModuleInteractionFormula,
+    output_dir: Path,
+) -> str:
+    """Export module×indicator interaction coefficients (14 named values)."""
+    coefs = i_mod.get_coefficients()
+    df = pd.DataFrame(coefs, columns=["module", "coefficient"])
+    df["abs_coefficient"] = np.abs(df["coefficient"])
+    df = df.sort_values("abs_coefficient", ascending=False)
+    path = output_dir / "module_interaction_coefficients.csv"
+    df.to_csv(path, index=False)
+    for _, row in df.iterrows():
+        if abs(row["coefficient"]) > 1e-6:
+            print(f"    {row['module']}: {row['coefficient']:+.4f}")
+    return str(path)
+
+
+def _expression_effect_curve(
+    i_expr: ExpressionEffectFormula,
+    output_dir: Path,
+) -> str:
+    """Export expression→dependency effect curve as a table."""
+    z_vals = np.linspace(-4, 4, 100)
+    preds = i_expr.predict(z_vals)
+    df = pd.DataFrame({"z_score": z_vals, "effect": preds})
+    path = output_dir / "expression_effect_curve.csv"
+    df.to_csv(path, index=False)
+    print(f"    θ = [{', '.join(f'{c:.4f}' for c in i_expr.coefficients_)}]")
+    return str(path)
+
+
+def _blend_weights(blend: InteractionBlend, output_dir: Path) -> str:
+    """Export interaction blend weights."""
+    weights = blend.get_weights()
     df = pd.DataFrame(weights, columns=["component", "weight"])
     df["abs_weight"] = np.abs(df["weight"])
     df = df.sort_values("abs_weight", ascending=False)
-    path = output_dir / "blend_weights.csv"
+    path = output_dir / "interaction_blend_weights.csv"
     df.to_csv(path, index=False)
-    print(f"    Blend alpha: {blend.alpha_:.4f}")
     for _, row in df.iterrows():
-        print(f"    {row['component']}: {row['weight']:.4f}")
-    return str(path)
-
-
-def _elasticnet_importance(
-    enet_model: SparseElasticNetModel,
-    output_dir: Path,
-) -> str:
-    """Export ElasticNet coefficients — directly interpretable feature weights."""
-    top = enet_model.get_top_features(top_n=50)
-    df = pd.DataFrame(top, columns=["feature", "coefficient"])
-    df["abs_coefficient"] = np.abs(df["coefficient"])
-    print(f"    {enet_model.n_nonzero_} nonzero / {len(enet_model.feature_names_)} features")
-    path = output_dir / "elasticnet_importance.csv"
-    df.to_csv(path, index=False)
-    return str(path)
-
-
-def _pca_ridge_importance(
-    pca_model: PCARidgeModel,
-    output_dir: Path,
-) -> str:
-    """Export PCA-Ridge back-mapped feature importance."""
-    top = pca_model.get_top_features(top_n=50)
-    df = pd.DataFrame(top, columns=["feature", "importance"])
-    print(f"    {pca_model.n_components} components, "
-          f"cumulative var={pca_model.explained_variance_ratio_.sum():.3f}")
-    path = output_dir / "pca_ridge_importance.csv"
-    df.to_csv(path, index=False)
-    return str(path)
-
-
-def _fa_loadings(
-    fa_model: FactorAnalysisModel,
-    output_dir: Path,
-) -> str:
-    """Export Factor Analysis gene loadings — per-factor top genes."""
-    if fa_model.gene_loadings_ is None:
-        return ""
-    K = fa_model.gene_loadings_.shape[1]
-    rows = []
-    for k in range(min(K, 10)):  # Top 10 factors
-        top_genes = fa_model.get_top_genes_per_factor(k, top_n=20)
-        for rank, (gene, loading) in enumerate(top_genes):
-            rows.append({
-                "factor": k,
-                "rank": rank + 1,
-                "gene": gene,
-                "loading": loading,
-            })
-    df = pd.DataFrame(rows)
-    path = output_dir / "fa_gene_loadings.csv"
-    df.to_csv(path, index=False)
-    return str(path)
-
-
-def _spline_partial_dependence(
-    spline_model: SplineGAMModel,
-    output_dir: Path,
-) -> str:
-    """Export Spline-GAM partial dependence curves for each selected feature."""
-    rows = []
-    for feat_idx in spline_model.selected_features_:
-        name = (spline_model.feature_names_[feat_idx]
-                if feat_idx < len(spline_model.feature_names_)
-                else f"feat_{feat_idx}")
-        x_grid, y_vals = spline_model.get_partial_dependence(feat_idx, n_points=50)
-        for x, y in zip(x_grid, y_vals):
-            rows.append({"feature": name, "x": float(x), "effect": float(y)})
-    df = pd.DataFrame(rows)
-    path = output_dir / "spline_partial_dependence.csv"
-    df.to_csv(path, index=False)
+        print(f"    {row['component']}: {row['weight']:+.4f}")
     return str(path)
 
 
@@ -235,24 +292,21 @@ def _gene_baseline_decomposition(
 
     teacher, oof_preds, _ = train_gene_baseline_teacher(g1, g2, labels)
 
-    # For each cold gene, show predicted baseline
     train_genes = set(labels["perturbation_gene"].unique())
     all_genes = set(gene_feats.index)
     cold_genes = sorted(all_genes - train_genes)
 
     rows = []
-    for gene in cold_genes[:50]:  # Top 50 cold genes
+    for gene in cold_genes[:50]:
         if gene not in gene_feats.index:
             continue
         x = gene_feats.loc[gene].to_numpy(dtype=np.float32).reshape(1, -1)
         x = np.nan_to_num(x, nan=0.0)
         pred = teacher.predict(x)[0]
-
-        # Module memberships
         modules = meta["gene_module_map"].get(gene, {}).get("modules", [])
         rows.append({
             "gene": gene,
-            "predicted_baseline": pred,
+            "predicted_baseline": float(pred),
             "n_modules": len(modules),
         })
 
@@ -271,7 +325,7 @@ def _context_specificity(
     meta: dict,
     output_dir: Path,
 ) -> str:
-    """Analyze lineage-specific dependency patterns (ref [2][5])."""
+    """Analyze lineage-specific dependency patterns."""
     submission = pred_result["submission"]
     lineage_map = cell_meta.set_index("cell_line_id")["OncotreeLineage"]
 
@@ -306,7 +360,6 @@ def _context_specificity(
     path = output_dir / "lineage_module_dependency.csv"
     df_out.to_csv(path, index=False)
 
-    # Context-specificity index per module
     if len(df_out) > 0:
         csi = df_out.groupby("module")["mean_dependency"].agg(["std", "mean"])
         csi["csi"] = csi["std"] / (csi["mean"].abs() + 1e-8)
@@ -315,6 +368,8 @@ def _context_specificity(
 
     return str(path)
 
+
+# ── Cell module profiles ────────────────────────────────────────────────────
 
 def _cell_module_profiles(
     pred_result: dict,
@@ -348,6 +403,8 @@ def _cell_module_profiles(
     return str(path)
 
 
+# ── Case studies ────────────────────────────────────────────────────────────
+
 def _case_studies(
     pred_result: dict,
     labels: pd.DataFrame,
@@ -356,7 +413,6 @@ def _case_studies(
 ) -> str:
     """Generate case studies for representative cell lines."""
     submission = pred_result["submission"]
-
     example_cells = submission["cell_line_id"].unique()[:3]
 
     rows = []

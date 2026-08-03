@@ -162,13 +162,13 @@ def run_prediction(config: dict[str, Any]) -> dict[str, Any]:
         else:
             X_train[col] = g5_train[col].values
 
-    # ── Train white-box models ──
-    print("\nTraining white-box models...")
+    # ── Train formula-based models ──
+    print("\nTraining formula-based models...")
     y_train = labels["label"].to_numpy(dtype=np.float64)
     train_cells = labels["cell_line_id"].to_numpy()
     train_genes_arr = labels["perturbation_gene"].to_numpy()
 
-    # Build cell features for white-box training
+    # Build cell features for formula training
     from .features import build_cell_features as _build_cell_features
     train_cell_feats_df = _build_cell_features(
         Path(config["paths"]["output_dir"]),
@@ -185,8 +185,8 @@ def run_prediction(config: dict[str, Any]) -> dict[str, Any]:
         labels, gene_meta, pathway_meta, expression, cold_genes, k=20,
     )
 
-    from .whitebox import train_whitebox_models
-    models = train_whitebox_models(
+    from .formula import train_formula_models
+    models = train_formula_models(
         X_train, y_train, train_cells, train_genes_arr,
         expression=expression,
         gene_static_features=g1,
@@ -273,9 +273,9 @@ def run_prediction(config: dict[str, Any]) -> dict[str, Any]:
     )
     print(f"  CF predictions for {len(cf_cold):,} (cell, gene) pairs")
 
-    # ── Predict (white-box blend) ──
-    print("\nGenerating predictions (white-box blend)...")
-    from .whitebox import predict_whitebox
+    # ── Predict (formula-based) ──
+    print("\nGenerating predictions (formula-based)...")
+    from .formula import predict_formula
 
     # Build cell features for test cells
     test_cell_feats_df = _build_cell_features(
@@ -285,7 +285,7 @@ def run_prediction(config: dict[str, Any]) -> dict[str, Any]:
     test_lineage_onehot = _build_lineage_onehot(cell_meta, list(submission["cell_line_id"].unique()))
     test_cell_feats_df = pd.concat([test_cell_feats_df, test_lineage_onehot], axis=1)
 
-    test_preds = predict_whitebox(
+    test_preds = predict_formula(
         X_test,
         submission["cell_line_id"].to_numpy(),
         submission["perturbation_gene"].to_numpy(),
@@ -302,7 +302,7 @@ def run_prediction(config: dict[str, Any]) -> dict[str, Any]:
     submission_df = submission.copy()
     submission_df["label"] = test_preds
 
-    print(f"\n  White-box predictions: mean={test_preds.mean():.4f}, "
+    print(f"\n  Formula predictions: mean={test_preds.mean():.4f}, "
           f"std={test_preds.std():.4f}, "
           f"range=[{test_preds.min():.4f}, {test_preds.max():.4f}]")
 
@@ -313,9 +313,9 @@ def run_prediction(config: dict[str, Any]) -> dict[str, Any]:
     submission_df.to_csv(submission_path, index=False)
     print(f"\n  Submission saved to: {submission_path}")
 
-    # ── Training set metrics (white-box model) ──
-    print("\nComputing training metrics (white-box model)...")
-    train_preds = predict_whitebox(
+    # ── Training set metrics (formula-based model) ──
+    print("\nComputing training metrics (formula-based model)...")
+    train_preds = predict_formula(
         X_train,
         train_cells,
         train_genes_arr,

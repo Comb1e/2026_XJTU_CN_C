@@ -1,13 +1,13 @@
-"""Tests for src/prediction/ interpretable white-box models.
+"""Tests for src/prediction/ interpretable formula-based models.
 
 Tests cover:
-  - FactorAnalysisModel: fit, predict, cold gene imputation
-  - SparseElasticNetModel: fit, predict, sparsity
-  - PCARidgeModel: fit, predict, feature importance back-mapping
-  - PLSModel: fit, predict
-  - SplineGAMModel: fit, predict, partial dependence
-  - RidgeBlend: optimal component weighting
-  - QuantileCalibrator: monotone distribution matching
+  - GeneEssentialityFormula: fit, predict, feature importance
+  - CellVulnerabilityFormula: fit, predict, feature importance
+  - ModuleInteractionFormula: fit, predict, named coefficients
+  - ExpressionEffectFormula: fit, predict, asymmetric effect
+  - ModuleMatchFormula: fit, predict
+  - EvidenceWeightedFormula: fit, predict, single coefficient
+  - InteractionBlend: optimal component weighting
   - Pairwise ranking (LogisticRegression Bradley-Terry)
   - Calibration utilities (Ridge, quantile)
 """
@@ -22,14 +22,14 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.prediction.whitebox import (
-    FactorAnalysisModel,
-    SparseElasticNetModel,
-    PCARidgeModel,
-    PLSModel,
-    SplineGAMModel,
-    RidgeBlend,
-    QuantileCalibrator,
+from src.prediction.formula import (
+    GeneEssentialityFormula,
+    CellVulnerabilityFormula,
+    ModuleInteractionFormula,
+    ExpressionEffectFormula,
+    ModuleMatchFormula,
+    EvidenceWeightedFormula,
+    InteractionBlend,
 )
 from src.prediction.models import (
     sample_pairwise_pairs,
@@ -44,275 +44,338 @@ from src.prediction.models import (
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Factor Analysis
+# Gene Essentiality Formula
 # ═══════════════════════════════════════════════════════════════════════════════
 
-class TestFactorAnalysisModel:
+class TestGeneEssentialityFormula:
     def test_fit_and_predict(self):
         rng = np.random.RandomState(42)
-        n_cells, n_genes, K = 50, 30, 3
-        # Generate structured data: cell_scores @ gene_loadings.T + noise
-        cell_scores_true = rng.randn(n_cells, K).astype(np.float64)
-        gene_loadings_true = rng.randn(n_genes, K).astype(np.float64)
-        R = cell_scores_true @ gene_loadings_true.T + 0.1 * rng.randn(n_cells, n_genes)
-
-        fa = FactorAnalysisModel(n_components=K, random_state=42)
-        fa.fit(
-            R,
-            cell_index=pd.Index([f"C{i}" for i in range(n_cells)]),
-            gene_index=pd.Index([f"G{i}" for i in range(n_genes)]),
+        n_genes, n_feats = 50, 10
+        true_w = rng.randn(n_feats)
+        X = pd.DataFrame(
+            rng.randn(n_genes, n_feats).astype(np.float32),
+            index=[f"G{i}" for i in range(n_genes)],
+            columns=[f"feat_{i}" for i in range(n_feats)],
         )
+        gene_means = {f"G{i}": float(X.iloc[i] @ true_w + 0.1 * rng.randn())
+                      for i in range(n_genes)}
 
-        # Predict
-        cell_ids = [f"C{i}" for i in range(n_cells)]
-        gene_ids = [f"G{i}" for i in range(n_genes)]
-        preds = fa.predict(cell_ids * n_genes, [f"G{i % n_genes}" for i in range(n_cells * n_genes)])
-        assert len(preds) == n_cells * n_genes
-        assert preds.dtype == np.float32
-        assert not np.isnan(preds).any()
+        formula = GeneEssentialityFormula(alpha=1.0)
+        formula.fit(X, gene_means)
 
-    def test_top_genes_per_factor(self):
-        rng = np.random.RandomState(42)
-        n_cells, n_genes, K = 30, 20, 5
-        R = rng.randn(n_cells, n_genes)
-        fa = FactorAnalysisModel(n_components=K, random_state=42)
-        fa.fit(
-            R,
-            cell_index=pd.Index([f"C{i}" for i in range(n_cells)]),
-            gene_index=pd.Index([f"G{i}" for i in range(n_genes)]),
-        )
-        top = fa.get_top_genes_per_factor(0, top_n=5)
-        assert len(top) == 5
-        assert all(isinstance(g, str) for g, _ in top)
-        assert all(isinstance(v, float) for _, v in top)
-
-    def test_cold_gene_imputation(self):
-        rng = np.random.RandomState(42)
-        n_cells, n_genes = 40, 25
-        R = rng.randn(n_cells, n_genes)
-
-        # Gene features for imputation — use distinct column names to avoid overlap
-        gene_static = pd.DataFrame(
-            rng.randn(n_genes + 3, 10).astype(np.float32),
-            index=[f"G{i}" for i in range(n_genes + 3)],
-            columns=[f"gs_{i}" for i in range(10)],
-        )
-        gene_expr = pd.DataFrame(
-            rng.randn(n_genes + 3, 5).astype(np.float32),
-            index=[f"G{i}" for i in range(n_genes + 3)],
-            columns=[f"ge_{i}" for i in range(5)],
-        )
-        cold_genes = {"G20", "G21", "G22"}
-
-        fa = FactorAnalysisModel(n_components=3, random_state=42)
-        fa.fit(
-            R,
-            cell_index=pd.Index([f"C{i}" for i in range(n_cells)]),
-            gene_index=pd.Index([f"G{i}" for i in range(n_genes)]),
-            cold_genes=cold_genes,
-            gene_static_features=gene_static,
-            gene_expr_profile_features=gene_expr,
-        )
-
-        # Cold genes should be in gene_index_ after imputation
-        for g in cold_genes:
-            assert g in fa.gene_index_
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Sparse ElasticNet
-# ═══════════════════════════════════════════════════════════════════════════════
-
-class TestSparseElasticNetModel:
-    def test_fit_and_predict(self):
-        rng = np.random.RandomState(42)
-        n, d = 200, 30
-        true_coef = np.zeros(d)
-        true_coef[:5] = [1.0, -0.5, 0.3, -0.2, 0.1]
-        X = rng.randn(n, d).astype(np.float64)
-        y = X @ true_coef + 0.1 * rng.randn(n)
-
-        model = SparseElasticNetModel(l1_ratio=0.5, n_alphas=20, random_state=42)
-        model.fit(X, y)
-
-        preds = model.predict(X)
-        assert len(preds) == n
-        assert model.n_nonzero_ > 0
-        assert model.n_nonzero_ <= d
-
-    def test_sparsity(self):
-        """ElasticNet should produce sparse coefficients with L1 penalty."""
-        rng = np.random.RandomState(42)
-        n, d = 300, 50
-        true_coef = np.zeros(d)
-        true_coef[0] = 2.0  # only one real signal
-        X = rng.randn(n, d).astype(np.float64)
-        y = X @ true_coef + 0.5 * rng.randn(n)
-
-        model = SparseElasticNetModel(l1_ratio=0.9, n_alphas=20, random_state=42)
-        model.fit(X, y)
-        # Should be sparse: many zeros
-        assert model.n_nonzero_ < d // 2
+        preds = formula.predict(X)
+        assert len(preds) == n_genes
+        assert all(isinstance(v, float) for v in preds.values())
 
     def test_top_features(self):
         rng = np.random.RandomState(42)
-        n, d = 200, 20
-        true_coef = np.zeros(d)
-        true_coef[0] = 1.5
-        true_coef[3] = -0.8
-        X = rng.randn(n, d).astype(np.float64)
-        y = X @ true_coef + 0.05 * rng.randn(n)
-        names = [f"feat_{i}" for i in range(d)]
-
-        model = SparseElasticNetModel(l1_ratio=0.5, n_alphas=20, random_state=42)
-        model.fit(X, y, feature_names=names)
-
-        top = model.get_top_features(top_n=5)
+        n_genes, n_feats = 30, 15
+        X = pd.DataFrame(
+            rng.randn(n_genes, n_feats).astype(np.float32),
+            index=[f"G{i}" for i in range(n_genes)],
+            columns=[f"feat_{i}" for i in range(n_feats)],
+        )
+        gene_means = {f"G{i}": float(rng.randn()) for i in range(n_genes)}
+        formula = GeneEssentialityFormula(alpha=1.0)
+        formula.fit(X, gene_means)
+        top = formula.get_top_features(top_n=5)
         assert len(top) == 5
         assert all(isinstance(n, str) for n, _ in top)
 
+    def test_formula_str(self):
+        rng = np.random.RandomState(42)
+        n_genes, n_feats = 20, 8
+        X = pd.DataFrame(
+            rng.randn(n_genes, n_feats).astype(np.float32),
+            index=[f"G{i}" for i in range(n_genes)],
+            columns=[f"feat_{i}" for i in range(n_feats)],
+        )
+        gene_means = {f"G{i}": float(rng.randn()) for i in range(n_genes)}
+        formula = GeneEssentialityFormula(alpha=1.0)
+        formula.fit(X, gene_means)
+        s = formula.formula_str(top_n=3)
+        assert "μ̂_g" in s
+        assert len(s.split("\n")) >= 4
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# PCA-Ridge
+# Cell Vulnerability Formula
 # ═══════════════════════════════════════════════════════════════════════════════
 
-class TestPCARidgeModel:
+class TestCellVulnerabilityFormula:
     def test_fit_and_predict(self):
         rng = np.random.RandomState(42)
-        n, d = 200, 40
-        X = rng.randn(n, d).astype(np.float64)
-        true_w = rng.randn(d)
-        y = X @ true_w + 0.1 * rng.randn(n)
+        n_cells, n_feats = 40, 12
+        true_w = rng.randn(n_feats)
+        X = pd.DataFrame(
+            rng.randn(n_cells, n_feats).astype(np.float32),
+            index=[f"C{i}" for i in range(n_cells)],
+            columns=[f"feat_{i}" for i in range(n_feats)],
+        )
+        cell_means = {f"C{i}": float(X.iloc[i] @ true_w + 0.1 * rng.randn())
+                      for i in range(n_cells)}
 
-        model = PCARidgeModel(n_components=10, ridge_alpha=1.0, random_state=42)
-        model.fit(X, y)
+        formula = CellVulnerabilityFormula(alpha=10.0)
+        formula.fit(X, cell_means)
 
-        preds = model.predict(X)
-        assert len(preds) == n
-        assert preds.dtype == np.float32
-        assert not np.isnan(preds).any()
+        preds = formula.predict(X)
+        assert len(preds) == n_cells
+        assert all(isinstance(v, float) for v in preds.values())
 
-    def test_feature_importance_back_mapping(self):
+    def test_top_features(self):
         rng = np.random.RandomState(42)
-        n, d = 200, 30
-        X = rng.randn(n, d).astype(np.float64)
-        true_w = rng.randn(d)
-        y = X @ true_w + 0.1 * rng.randn(n)
-        names = [f"feat_{i}" for i in range(d)]
+        n_cells, n_feats = 30, 10
+        X = pd.DataFrame(
+            rng.randn(n_cells, n_feats).astype(np.float32),
+            index=[f"C{i}" for i in range(n_cells)],
+            columns=[f"feat_{i}" for i in range(n_feats)],
+        )
+        cell_means = {f"C{i}": float(rng.randn()) for i in range(n_cells)}
+        formula = CellVulnerabilityFormula(alpha=10.0)
+        formula.fit(X, cell_means)
+        top = formula.get_top_features(top_n=5)
+        assert len(top) == 5
 
-        model = PCARidgeModel(n_components=10, ridge_alpha=1.0, random_state=42)
-        model.fit(X, y, feature_names=names)
-
-        assert model.feature_importance_ is not None
-        assert len(model.feature_importance_) == d
-        top = model.get_top_features(top_n=10)
-        assert len(top) == 10
-
-    def test_explained_variance(self):
+    def test_formula_str(self):
         rng = np.random.RandomState(42)
-        n, d = 200, 40
-        X = rng.randn(n, d).astype(np.float64)
-        y = rng.randn(n)
-
-        model = PCARidgeModel(n_components=10, random_state=42)
-        model.fit(X, y)
-        evr = model.explained_variance_ratio_
-        assert len(evr) == 10
-        assert np.all(evr >= 0)
-        assert np.all(evr <= 1)
+        n_cells, n_feats = 20, 6
+        X = pd.DataFrame(
+            rng.randn(n_cells, n_feats).astype(np.float32),
+            index=[f"C{i}" for i in range(n_cells)],
+            columns=[f"feat_{i}" for i in range(n_feats)],
+        )
+        cell_means = {f"C{i}": float(rng.randn()) for i in range(n_cells)}
+        formula = CellVulnerabilityFormula(alpha=10.0)
+        formula.fit(X, cell_means)
+        s = formula.formula_str(top_n=3)
+        assert "β̂_c" in s
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# PLS
+# Module×Indicator Interaction Formula
 # ═══════════════════════════════════════════════════════════════════════════════
 
-class TestPLSModel:
-    def test_fit_and_predict(self):
-        rng = np.random.RandomState(42)
-        n, d = 200, 30
-        X = rng.randn(n, d).astype(np.float64)
-        # Make y a linear combination of first 5 features
-        y = X[:, :5].sum(axis=1) + 0.1 * rng.randn(n)
-
-        model = PLSModel(n_components=5, random_state=42)
-        model.fit(X, y)
-
-        preds = model.predict(X)
-        assert len(preds) == n
-        assert preds.dtype == np.float32
-        # Should have reasonable correlation
-        corr = np.corrcoef(preds, y)[0, 1]
-        assert corr > 0.3
-
-    def test_feature_importance(self):
-        rng = np.random.RandomState(42)
-        n, d = 200, 20
-        X = rng.randn(n, d).astype(np.float64)
-        y = X[:, 0] * 3.0 + X[:, 1] * 2.0 + 0.1 * rng.randn(n)
-
-        model = PLSModel(n_components=5, random_state=42)
-        model.fit(X, y)
-        imp = model.get_feature_importance()
-        assert len(imp) == d
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Spline-GAM
-# ═══════════════════════════════════════════════════════════════════════════════
-
-class TestSplineGAMModel:
-    def test_fit_and_predict(self):
-        rng = np.random.RandomState(42)
-        n, d = 300, 15
-        X = rng.randn(n, d).astype(np.float64)
-        # Nonlinear relationship in first feature
-        y = np.sin(X[:, 0]) + 0.3 * X[:, 1] + 0.1 * rng.randn(n)
-
-        model = SplineGAMModel(max_features=5, spline_smooth=0.3, random_state=42)
-        model.fit(X, y)
-
-        preds = model.predict(X)
-        assert len(preds) == n
-        assert preds.dtype == np.float32
-        assert not np.isnan(preds).any()
-
-    def test_partial_dependence(self):
-        rng = np.random.RandomState(42)
-        n, d = 200, 10
-        X = rng.randn(n, d).astype(np.float64)
-        y = np.sin(X[:, 0]) + 0.1 * rng.randn(n)
-
-        model = SplineGAMModel(max_features=5, spline_smooth=0.3, random_state=42)
-        model.fit(X, y)
-
-        # First feature should be selected (highest correlation)
-        assert 0 in model.selected_features_
-        x_grid, y_vals = model.get_partial_dependence(0, n_points=50)
-        assert len(x_grid) == 50
-        assert len(y_vals) == 50
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# RidgeBlend
-# ═══════════════════════════════════════════════════════════════════════════════
-
-class TestRidgeBlend:
+class TestModuleInteractionFormula:
     def test_fit_and_predict(self):
         rng = np.random.RandomState(42)
         n = 200
-        # Two components: one good, one noisy
-        comp1 = rng.randn(n).astype(np.float32)  # good signal
-        comp2 = rng.randn(n).astype(np.float32)  # noise
+        n_modules = 14
+        module_membership = np.zeros((n, n_modules), dtype=np.float32)
+        for i in range(n):
+            module_membership[i, i % n_modules] = 1.0
+        cell_indicators = rng.randn(n, n_modules).astype(np.float32)
+        # Generate labels with known module interaction
+        true_coef = np.array([0.5 if m == 0 else -0.2 if m == 3 else 0.1 if m == 6 else 0.0
+                             for m in range(n_modules)])
+        residuals = (module_membership * cell_indicators) @ true_coef + 0.1 * rng.randn(n)
+
+        formula = ModuleInteractionFormula(alpha=1.0, n_modules=n_modules)
+        formula.fit(
+            np.array([f"C{i}" for i in range(n)]),
+            np.array([f"G{i}" for i in range(n)]),
+            residuals,
+            module_membership,
+            cell_indicators,
+        )
+
+        preds = formula.predict(module_membership, cell_indicators)
+        assert len(preds) == n
+        assert preds.dtype == np.float32
+
+    def test_named_coefficients(self):
+        rng = np.random.RandomState(42)
+        n = 100
+        n_modules = 14
+        module_membership = np.zeros((n, n_modules), dtype=np.float32)
+        for i in range(n):
+            module_membership[i, i % n_modules] = 1.0
+        cell_indicators = rng.randn(n, n_modules).astype(np.float32)
+        residuals = rng.randn(n)
+
+        formula = ModuleInteractionFormula(alpha=1.0, n_modules=n_modules)
+        formula.fit(
+            np.array([f"C{i}" for i in range(n)]),
+            np.array([f"G{i}" for i in range(n)]),
+            residuals,
+            module_membership,
+            cell_indicators,
+        )
+
+        coefs = formula.get_coefficients()
+        assert len(coefs) == n_modules
+        assert all(isinstance(name, str) for name, _ in coefs)
+        # Check that all 14 module names are present
+        for name in ModuleInteractionFormula.MODULE_NAMES:
+            assert any(c[0] == name for c in coefs)
+
+    def test_formula_str(self):
+        rng = np.random.RandomState(42)
+        n = 50
+        n_modules = 14
+        module_membership = np.zeros((n, n_modules), dtype=np.float32)
+        for i in range(n):
+            module_membership[i, i % n_modules] = 1.0
+        cell_indicators = rng.randn(n, n_modules).astype(np.float32)
+        residuals = rng.randn(n)
+
+        formula = ModuleInteractionFormula(alpha=1.0, n_modules=n_modules)
+        formula.fit(
+            np.array([f"C{i}" for i in range(n)]),
+            np.array([f"G{i}" for i in range(n)]),
+            residuals, module_membership, cell_indicators,
+        )
+        s = formula.formula_str()
+        assert "I_mod" in s
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Expression Effect Formula
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestExpressionEffectFormula:
+    def test_fit_and_predict(self):
+        rng = np.random.RandomState(42)
+        n = 300
+        z_cg = rng.randn(n).astype(np.float32)
+        # Nonlinear asymmetric effect
+        residuals = -0.5 * z_cg + 0.3 * np.abs(z_cg) - 0.2 * np.maximum(0, z_cg) + 0.1 * rng.randn(n)
+
+        formula = ExpressionEffectFormula(alpha=1.0)
+        formula.fit(z_cg, residuals)
+
+        preds = formula.predict(z_cg)
+        assert len(preds) == n
+        assert preds.dtype == np.float32
+        assert not np.isnan(preds).any()
+
+    def test_coefficients_shape(self):
+        rng = np.random.RandomState(42)
+        n = 200
+        z_cg = rng.randn(n).astype(np.float32)
+        residuals = rng.randn(n)
+
+        formula = ExpressionEffectFormula(alpha=1.0)
+        formula.fit(z_cg, residuals)
+        assert formula.coefficients_ is not None
+        assert len(formula.coefficients_) == 4  # θ₁, θ₂, θ₃, θ₄
+
+    def test_formula_str(self):
+        rng = np.random.RandomState(42)
+        n = 100
+        z_cg = rng.randn(n).astype(np.float32)
+        residuals = rng.randn(n)
+
+        formula = ExpressionEffectFormula(alpha=1.0)
+        formula.fit(z_cg, residuals)
+        s = formula.formula_str()
+        assert "I_expr" in s
+        assert "|z|" in s
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Module Match Formula
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestModuleMatchFormula:
+    def test_fit_and_predict(self):
+        rng = np.random.RandomState(42)
+        n = 200
+        n_modules = 14
+        module_membership = np.zeros((n, n_modules), dtype=np.float32)
+        for i in range(n):
+            module_membership[i, i % n_modules] = 1.0
+        expr_percentile = rng.rand(n).astype(np.float32)
+        residuals = rng.randn(n)
+
+        formula = ModuleMatchFormula(alpha=1.0, n_modules=n_modules)
+        formula.fit(module_membership, expr_percentile, residuals)
+
+        preds = formula.predict(module_membership, expr_percentile)
+        assert len(preds) == n
+        assert preds.dtype == np.float32
+
+    def test_formula_str(self):
+        rng = np.random.RandomState(42)
+        n = 50
+        n_modules = 14
+        module_membership = np.zeros((n, n_modules), dtype=np.float32)
+        for i in range(n):
+            module_membership[i, i % n_modules] = 1.0
+        expr_percentile = rng.rand(n).astype(np.float32)
+        residuals = rng.randn(n)
+
+        formula = ModuleMatchFormula(alpha=1.0, n_modules=n_modules)
+        formula.fit(module_membership, expr_percentile, residuals)
+        s = formula.formula_str()
+        assert "I_match" in s
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Evidence-Weighted Expression Formula
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestEvidenceWeightedFormula:
+    def test_fit_and_predict(self):
+        rng = np.random.RandomState(42)
+        n = 300
+        evidence = rng.rand(n).astype(np.float32) * 0.5 + 0.5
+        z_cg = rng.randn(n).astype(np.float32)
+        true_omega = 0.7
+        residuals = true_omega * evidence * z_cg + 0.1 * rng.randn(n)
+
+        formula = EvidenceWeightedFormula()
+        formula.fit(evidence, z_cg, residuals)
+
+        preds = formula.predict(evidence, z_cg)
+        assert len(preds) == n
+        assert preds.dtype == np.float32
+        # Should recover approximate omega
+        assert abs(formula.omega_ - true_omega) < 0.5
+
+    def test_single_coefficient(self):
+        rng = np.random.RandomState(42)
+        n = 200
+        evidence = rng.rand(n).astype(np.float32)
+        z_cg = rng.randn(n).astype(np.float32)
+        residuals = rng.randn(n)
+
+        formula = EvidenceWeightedFormula()
+        formula.fit(evidence, z_cg, residuals)
+        assert isinstance(formula.omega_, float)
+
+    def test_formula_str(self):
+        rng = np.random.RandomState(42)
+        n = 100
+        evidence = rng.rand(n).astype(np.float32)
+        z_cg = rng.randn(n).astype(np.float32)
+        residuals = rng.randn(n)
+
+        formula = EvidenceWeightedFormula()
+        formula.fit(evidence, z_cg, residuals)
+        s = formula.formula_str()
+        assert "I_ew" in s
+        assert "EvidenceWeight" in s
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Interaction Blend
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestInteractionBlend:
+    def test_fit_and_predict(self):
+        rng = np.random.RandomState(42)
+        n = 200
+        comp1 = rng.randn(n).astype(np.float32)
+        comp2 = rng.randn(n).astype(np.float32)
         y = 2.0 * comp1 + 0.0 * comp2 + 0.1 * rng.randn(n)
 
-        blend = RidgeBlend(alphas=[0.1, 1.0, 10.0])
+        blend = InteractionBlend(alphas=[0.1, 1.0, 10.0])
         blend.fit([comp1, comp2], y, component_names=["good", "noisy"])
 
         preds = blend.predict([comp1, comp2])
         assert len(preds) == n
 
-        # Good component should get larger weight
-        weights = dict(blend.get_component_weights())
+        weights = dict(blend.get_weights())
         assert abs(weights["good"]) > abs(weights["noisy"])
 
     def test_weights_summary(self):
@@ -321,45 +384,10 @@ class TestRidgeBlend:
         comps = [rng.randn(n).astype(np.float32) for _ in range(3)]
         y = comps[0] + 0.5 * comps[1] + 0.1 * rng.randn(n)
 
-        blend = RidgeBlend()
+        blend = InteractionBlend()
         blend.fit(comps, y, component_names=["a", "b", "c"])
-        weights = blend.get_component_weights()
+        weights = blend.get_weights()
         assert len(weights) == 3
-        assert blend.alpha_ > 0
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# QuantileCalibrator
-# ═══════════════════════════════════════════════════════════════════════════════
-
-class TestQuantileCalibrator:
-    def test_monotone_preservation(self):
-        rng = np.random.RandomState(42)
-        y_pred = rng.randn(500).astype(np.float32)
-        y_true = 2.0 * y_pred + 0.5 + 0.1 * rng.randn(500)
-
-        cal = QuantileCalibrator(n_quantiles=100)
-        cal.fit(y_pred, y_true)
-        calibrated = cal.transform(y_pred)
-
-        # Monotonicity: if pred_a > pred_b, then cal_a >= cal_b
-        for _ in range(100):
-            i, j = rng.choice(500, 2, replace=False)
-            if y_pred[i] > y_pred[j]:
-                assert calibrated[i] >= calibrated[j] - 1e-10
-
-    def test_distribution_matching(self):
-        """Calibrated predictions should have similar distribution to labels."""
-        rng = np.random.RandomState(42)
-        y_pred = rng.rand(1000).astype(np.float32) * 2 - 1  # [-1, 1]
-        y_true = rng.randn(1000) * 0.5 + 0.3  # N(0.3, 0.5)
-
-        cal = QuantileCalibrator(n_quantiles=200)
-        cal.fit(y_pred, y_true)
-        calibrated = cal.transform(y_pred)
-
-        # Mean should shift toward label mean
-        assert abs(calibrated.mean() - y_true.mean()) < abs(y_pred.mean() - y_true.mean())
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -397,7 +425,6 @@ class TestPairwiseRanking:
 
     def test_returns_none_for_insufficient_data(self):
         rng = np.random.RandomState(42)
-        # Only one example per cell — no pairs possible
         X = rng.randn(5, 3).astype(np.float32)
         y = np.zeros(5)
         cells = np.array(["C1", "C2", "C3", "C4", "C5"])
@@ -420,12 +447,12 @@ class TestBlendRanks:
 
     def test_cold_mask_zeros_model_b(self):
         preds_a = np.array([5.0, 3.0, 1.0], dtype=np.float32)
-        preds_b = np.array([1.0, 3.0, 5.0], dtype=np.float32)  # reversed
+        preds_b = np.array([1.0, 3.0, 5.0], dtype=np.float32)
         cells = np.array(["C1"] * 3)
         cold = np.array([True, False, False])
         blended = blend_ranks(preds_a, preds_b, cells,
                               alpha_a=0.5, alpha_b=0.5, cold_mask=cold)
-        assert blended[0] > blended[2]  # follows A's ordering
+        assert blended[0] > blended[2]
 
     def test_blend_ranks_multi(self):
         preds_a = np.array([5.0, 3.0, 1.0], dtype=np.float32)
@@ -465,14 +492,11 @@ class TestCalibration:
         """Quantile calibration preserves ordering (Spearman correlation)."""
         from scipy.stats import spearmanr
         rng = np.random.RandomState(42)
-        # calibrate_quantile expects predictions in [0, 1] range
-        y_pred = rng.rand(500).astype(np.float32)  # uniform in [0, 1]
+        y_pred = rng.rand(500).astype(np.float32)
         y_true = 3.0 * y_pred + 1.0 + 0.2 * rng.randn(500)
         cal_fn = calibrate_quantile(y_pred, y_true)
         calibrated = cal_fn(y_pred)
         assert calibrated.shape == y_pred.shape
-        # Quantile mapping is monotone → preserves rank ordering well
         spearman_before = spearmanr(y_pred, y_true)[0]
         spearman_after = spearmanr(calibrated, y_true)[0]
-        # Spearman should be very close (monotone transform with fine grid)
         assert abs(spearman_after - spearman_before) < 0.01

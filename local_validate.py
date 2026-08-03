@@ -33,7 +33,7 @@ from src.utils import load_config
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _build_teacher(train_labels, gene_meta, pathway_meta, expression, config):
-    """Build gene baseline teacher with all available gene-level features."""
+    """Build gene baseline teacher. Returns (teacher_model, gene_features_df)."""
     from src.prediction.features import (
         build_gene_static_features, build_gene_expression_profile_features,
     )
@@ -55,53 +55,7 @@ def _build_teacher(train_labels, gene_meta, pathway_meta, expression, config):
     teacher, oof_preds, gene_feats = train_gene_baseline_teacher(
         g1, g2, train_labels, extra_features=teacher_extra,
     )
-    return teacher, oof_preds, gene_feats, gene_module_map, evidence_weights
-
-
-def _compute_svd(train_labels, val_labels, cold_genes, gene_meta, expression, config):
-    """Compute SVD and impute cold gene factors. Returns svd_dot for ALL pairs (train+val)."""
-    from src.prediction.baselines import compute_label_svd, impute_gene_factors
-    from src.prediction.features import (
-        build_gene_static_features, build_gene_expression_profile_features,
-    )
-    from src.preprocess import build_gene_module_map, compute_evidence_weights
-
-    svd_k = config.get("prediction", {}).get("baselines", {}).get("svd_k", 20)
-    U, V, svd_cell_idx, svd_gene_idx, svd_global_mean = compute_label_svd(
-        train_labels, k=svd_k,
-    )
-    if cold_genes:
-        cold_list = list(cold_genes)
-        gmm = build_gene_module_map(gene_meta)
-        ew = compute_evidence_weights(gene_meta)
-        g1 = build_gene_static_features(gene_meta, gmm, ew)
-        g2 = build_gene_expression_profile_features(expression)
-        V_cold = impute_gene_factors(V, svd_gene_idx, g1, g2, cold_list)
-        V_ext = np.vstack([V, V_cold]) if len(V) > 0 else V_cold
-        gene_idx_ext = list(svd_gene_idx) + cold_list
-    else:
-        V_ext = V
-        gene_idx_ext = list(svd_gene_idx)
-
-    gene_to_col = {g: i for i, g in enumerate(gene_idx_ext)}
-    cell_to_row = {c: i for i, c in enumerate(svd_cell_idx)}
-
-    def _compute_dots(pairs_df):
-        svd_dot = {}
-        for _, row in pairs_df.iterrows():
-            c, g = row["cell_line_id"], row["perturbation_gene"]
-            if c in cell_to_row and g in gene_to_col:
-                svd_dot[(c, g)] = float(np.dot(
-                    U[cell_to_row[c]], V_ext[gene_to_col[g]]
-                ))
-            else:
-                svd_dot[(c, g)] = 0.0
-        return svd_dot
-
-    # Include BOTH training and validation pairs for consistent SVD signal
-    svd_dot = _compute_dots(train_labels)
-    svd_dot.update(_compute_dots(val_labels))
-    return svd_dot
+    return teacher, gene_feats
 
 
 def _build_features(pairs, train_labels, gene_bl, cell_bl, config):
@@ -161,7 +115,7 @@ def run_cold(labels, config, data_dir, output_dir, args):
     """All val genes are held-out entirely (cold-start)."""
     from src.prediction.baselines import (
         compute_loco_gene_means, shrink_cell_means,
-        predict_gene_baselines, predict_additive,
+        predict_gene_baselines,
     )
     # Split by gene
     unique_genes = labels["perturbation_gene"].unique()
@@ -183,34 +137,25 @@ def run_cold(labels, config, data_dir, output_dir, args):
     gene_bl, loco_train = compute_loco_gene_means(train_labels)
     cell_bl = shrink_cell_means(train_labels)
 
-    # Teacher
+    # Teacher for cold gene baselines
     gene_meta = pd.read_csv(data_dir / "metadata" / "gene_metadata.csv")
     pathway_meta = pd.read_csv(data_dir / "metadata" / "pathway_metadata.csv")
     cell_meta = pd.read_csv(data_dir / "metadata" / "cell_line_metadata.csv")
     expression = pd.read_csv(data_dir / "features" / "cell_expression_zscore.csv", index_col=0)
-    teacher, _, gene_feats, gmm, ew = _build_teacher(
+    teacher, gene_feats = _build_teacher(
         train_labels, gene_meta, pathway_meta, expression, config,
     )
     if cold_genes:
         cold_bl = predict_gene_baselines(teacher, gene_feats, list(cold_genes))
         gene_bl.update(cold_bl)
 
-    # Gene-similarity CF for cold genes
-    from src.prediction.baselines import build_gene_similarity_cf
-    cf_cold = build_gene_similarity_cf(
-        train_labels, gene_meta, pathway_meta, expression, cold_genes, k=20,
-    )
-
-    # SVD
-    svd_dot = _compute_svd(train_labels, val_labels, cold_genes, gene_meta, expression, config)
-
     # Features
     print("\nBuilding features...")
     X_train, _ = _build_features(train_labels, train_labels, gene_bl, cell_bl, config)
     X_train["g5_gene_baseline"] = loco_train  # LOCO override for honest training
 
-    # Train (white-box models)
-    print("\nTraining white-box models...")
+    # Train formula models
+    print("\nTraining formula-based models...")
     y_train = train_labels["label"].to_numpy(dtype=np.float64)
     from src.prediction.features import build_cell_features, build_lineage_onehot
     train_cell_feats = build_cell_features(
@@ -227,8 +172,8 @@ def run_cold(labels, config, data_dir, output_dir, args):
     g1 = build_gene_static_features(gene_meta, gmm, ew)
     g2 = build_gene_expression_profile_features(expression)
 
-    from src.prediction.whitebox import train_whitebox_models, predict_whitebox
-    wb_models = train_whitebox_models(
+    from src.prediction.formula import train_formula_models, predict_formula
+    fm_models = train_formula_models(
         X_train, y_train,
         train_labels["cell_line_id"].to_numpy(),
         train_labels["perturbation_gene"].to_numpy(),
@@ -238,8 +183,6 @@ def run_cold(labels, config, data_dir, output_dir, args):
         cell_features=train_cell_feats,
         gene_bl=gene_bl,
         cell_bl=cell_bl,
-        svd_dot=svd_dot,
-        cf_predictions=cf_cold,
         cold_genes=cold_genes,
         config=config,
     )
@@ -252,43 +195,25 @@ def run_cold(labels, config, data_dir, output_dir, args):
 
     # Predict
     print("\nPredicting...")
-    from src.prediction.baselines import predict_additive as _predict_additive
-    from src.prediction.whitebox import predict_whitebox as _predict_whitebox
-
-    # White-box predictions
-    wb_preds = _predict_whitebox(
+    from src.prediction.formula import predict_formula as _predict_formula
+    fm_preds = _predict_formula(
         X_val,
         val_labels["cell_line_id"].to_numpy(),
         val_labels["perturbation_gene"].to_numpy(),
         gene_bl=gene_bl,
         cell_bl=cell_bl,
-        svd_dot=svd_dot,
-        cf_predictions=cf_cold,
         cold_genes=cold_genes,
-        models=wb_models,
+        models=fm_models,
         add_jitter=True,
-    )
-    # Baseline: additive only
-    svd_w = config.get("prediction", {}).get("whitebox", {}).get("svd_weight", 0.5)
-    cf_w = config.get("prediction", {}).get("whitebox", {}).get("cf_weight", 0.6)
-    add_preds = _predict_additive(
-        val_labels[["cell_line_id", "perturbation_gene"]], gene_bl, cell_bl,
-    )
-    add_svd_preds = _predict_additive(
-        val_labels[["cell_line_id", "perturbation_gene"]], gene_bl, cell_bl,
-        svd_dot_products=svd_dot, svd_weight=svd_w,
-        cf_predictions=cf_cold, cf_weight=cf_w,
     )
 
     # Score
     print("\n--- Results ---")
-    _score(pd.DataFrame({"label": add_preds}), val_labels, data_dir, "additive")
-    _score(pd.DataFrame({"label": add_svd_preds}), val_labels, data_dir, "additive+SVD")
-    _score(pd.DataFrame({"label": wb_preds}), val_labels, data_dir, "whitebox")
+    _score(pd.DataFrame({"label": fm_preds}), val_labels, data_dir, "formula")
 
     # Save
     submission_df = val_labels[["cell_line_id", "perturbation_gene"]].copy()
-    submission_df["label"] = wb_preds
+    submission_df["label"] = fm_preds
     submission_df.to_csv(output_dir / "val_submission.csv", index=False)
     val_labels[["cell_line_id", "perturbation_gene", "label"]].to_csv(
         output_dir / "val_answer.csv", index=False,
@@ -297,7 +222,7 @@ def run_cold(labels, config, data_dir, output_dir, args):
     print(f"Saved: {output_dir / 'val_answer.csv'}")
     _run_official_scoring(output_dir / "val_submission.csv", output_dir / "val_answer.csv", data_dir)
 
-    return {"whitebox": wb_preds, "additive": add_svd_preds, "val_labels": val_labels}
+    return {"formula": fm_preds, "val_labels": val_labels}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -308,7 +233,7 @@ def run_warm(labels, config, data_dir, output_dir, args):
     """Hold out random cell-gene pairs; all genes appear in both train and val."""
     from src.prediction.baselines import (
         compute_loco_gene_means, shrink_cell_means,
-        predict_gene_baselines, predict_additive,
+        predict_gene_baselines,
     )
 
     rng = np.random.RandomState(args.random_state)
@@ -342,28 +267,19 @@ def run_warm(labels, config, data_dir, output_dir, args):
     cell_meta = pd.read_csv(data_dir / "metadata" / "cell_line_metadata.csv")
     expression = pd.read_csv(data_dir / "features" / "cell_expression_zscore.csv", index_col=0)
     if cold_genes:
-        teacher, _, gene_feats, _, _ = _build_teacher(
+        teacher, gene_feats = _build_teacher(
             train_labels, gene_meta, pathway_meta, expression, config,
         )
         cold_bl = predict_gene_baselines(teacher, gene_feats, list(cold_genes))
         gene_bl.update(cold_bl)
-
-    # Gene-similarity CF for cold genes (key innovation for cell-specific cold predictions)
-    from src.prediction.baselines import build_gene_similarity_cf
-    cf_cold = build_gene_similarity_cf(
-        train_labels, gene_meta, pathway_meta, expression, cold_genes, k=20,
-    )
-
-    # SVD
-    svd_dot = _compute_svd(train_labels, val_labels, cold_genes, gene_meta, expression, config)
 
     # Features
     print("\nBuilding features...")
     X_train, _ = _build_features(train_labels, train_labels, gene_bl, cell_bl, config)
     X_train["g5_gene_baseline"] = loco_train
 
-    # Train (white-box models)
-    print("\nTraining white-box models...")
+    # Train formula models
+    print("\nTraining formula-based models...")
     y_train = train_labels["label"].to_numpy(dtype=np.float64)
     from src.prediction.features import build_cell_features as _bcf, build_lineage_onehot as _blo
     train_cell_feats = _bcf(
@@ -380,8 +296,8 @@ def run_warm(labels, config, data_dir, output_dir, args):
     g1 = _bgsf(gene_meta, gmm, ew)
     g2 = _bgepf(expression)
 
-    from src.prediction.whitebox import train_whitebox_models as _train_wb
-    wb_models = _train_wb(
+    from src.prediction.formula import train_formula_models as _train_fm
+    fm_models = _train_fm(
         X_train, y_train,
         train_labels["cell_line_id"].to_numpy(),
         train_labels["perturbation_gene"].to_numpy(),
@@ -391,8 +307,6 @@ def run_warm(labels, config, data_dir, output_dir, args):
         cell_features=train_cell_feats,
         gene_bl=gene_bl,
         cell_bl=cell_bl,
-        svd_dot=svd_dot,
-        cf_predictions=cf_cold,
         cold_genes=cold_genes,
         config=config,
     )
@@ -405,39 +319,21 @@ def run_warm(labels, config, data_dir, output_dir, args):
 
     # Predict
     print("\nPredicting...")
-    from src.prediction.baselines import predict_additive as _predict_additive
-    from src.prediction.whitebox import predict_whitebox as _predict_whitebox
-
-    # White-box predictions
-    wb_preds = _predict_whitebox(
+    from src.prediction.formula import predict_formula as _predict_formula
+    fm_preds = _predict_formula(
         X_val,
         val_labels["cell_line_id"].to_numpy(),
         val_labels["perturbation_gene"].to_numpy(),
         gene_bl=gene_bl,
         cell_bl=cell_bl,
-        svd_dot=svd_dot,
-        cf_predictions=cf_cold,
         cold_genes=cold_genes,
-        models=wb_models,
+        models=fm_models,
         add_jitter=True,
-    )
-    # Baseline: additive only
-    svd_w = config.get("prediction", {}).get("whitebox", {}).get("svd_weight", 0.5)
-    cf_w = config.get("prediction", {}).get("whitebox", {}).get("cf_weight", 0.6)
-    add_preds = _predict_additive(
-        val_labels[["cell_line_id", "perturbation_gene"]], gene_bl, cell_bl,
-    )
-    add_svd_preds = _predict_additive(
-        val_labels[["cell_line_id", "perturbation_gene"]], gene_bl, cell_bl,
-        svd_dot_products=svd_dot, svd_weight=svd_w,
-        cf_predictions=cf_cold, cf_weight=cf_w,
     )
 
     # Score per regime
     print("\n--- Results ---")
-    _score(pd.DataFrame({"label": add_preds}), val_labels, data_dir, "additive-ALL")
-    _score(pd.DataFrame({"label": add_svd_preds}), val_labels, data_dir, "additive+SVD-ALL")
-    _score(pd.DataFrame({"label": wb_preds}), val_labels, data_dir, "whitebox-ALL")
+    _score(pd.DataFrame({"label": fm_preds}), val_labels, data_dir, "formula-ALL")
 
     warm_mask = ~val_labels["perturbation_gene"].isin(cold_genes)
     cold_mask = val_labels["perturbation_gene"].isin(cold_genes)
@@ -446,16 +342,16 @@ def run_warm(labels, config, data_dir, output_dir, args):
 
     if warm_mask.any():
         print("\n--- Warm-pair regime ---")
-        _score(pd.DataFrame({"label": wb_preds[warm_mask.values]}),
-               val_labels[warm_mask.values].reset_index(drop=True), data_dir, "WB-WARM")
+        _score(pd.DataFrame({"label": fm_preds[warm_mask.values]}),
+               val_labels[warm_mask.values].reset_index(drop=True), data_dir, "FM-WARM")
     if cold_mask.any():
         print("\n--- Cold-pair regime ---")
-        _score(pd.DataFrame({"label": wb_preds[cold_mask.values]}),
-               val_labels[cold_mask.values].reset_index(drop=True), data_dir, "WB-COLD")
+        _score(pd.DataFrame({"label": fm_preds[cold_mask.values]}),
+               val_labels[cold_mask.values].reset_index(drop=True), data_dir, "FM-COLD")
 
-    # Save — use white-box predictions for official scoring
+    # Save — use formula-based predictions for official scoring
     submission_df = val_labels[["cell_line_id", "perturbation_gene"]].copy()
-    submission_df["label"] = wb_preds
+    submission_df["label"] = fm_preds
     submission_df.to_csv(output_dir / "val_submission.csv", index=False)
     val_labels[["cell_line_id", "perturbation_gene", "label"]].to_csv(
         output_dir / "val_answer.csv", index=False,
@@ -463,7 +359,7 @@ def run_warm(labels, config, data_dir, output_dir, args):
     print(f"\nSaved: {output_dir / 'val_submission.csv'}")
     _run_official_scoring(output_dir / "val_submission.csv", output_dir / "val_answer.csv", data_dir)
 
-    return {"whitebox": wb_preds, "additive": add_svd_preds, "val_labels": val_labels}
+    return {"formula": fm_preds, "val_labels": val_labels}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -474,7 +370,7 @@ def run_real(labels, config, data_dir, output_dir, args):
     """Mimics the real test: ~15% genes cold, rest warm with ~20% pair holdout."""
     from src.prediction.baselines import (
         compute_loco_gene_means, shrink_cell_means,
-        predict_gene_baselines, predict_additive,
+        predict_gene_baselines,
     )
 
     rng = np.random.RandomState(args.random_state)
@@ -528,28 +424,19 @@ def run_real(labels, config, data_dir, output_dir, args):
     cell_meta = pd.read_csv(data_dir / "metadata" / "cell_line_metadata.csv")
     expression = pd.read_csv(data_dir / "features" / "cell_expression_zscore.csv", index_col=0)
     if val_cold_genes:
-        teacher, _, gene_feats, _, _ = _build_teacher(
+        teacher, gene_feats = _build_teacher(
             train_labels, gene_meta, pathway_meta, expression, config,
         )
         cold_bl = predict_gene_baselines(teacher, gene_feats, list(val_cold_genes))
         gene_bl.update(cold_bl)
-
-    # Gene-similarity CF for cold genes
-    from src.prediction.baselines import build_gene_similarity_cf
-    cf_cold = build_gene_similarity_cf(
-        train_labels, gene_meta, pathway_meta, expression, val_cold_genes, k=20,
-    )
-
-    # SVD
-    svd_dot = _compute_svd(train_labels, val_labels, val_cold_genes, gene_meta, expression, config)
 
     # Features
     print("\nBuilding features...")
     X_train, _ = _build_features(train_labels, train_labels, gene_bl, cell_bl, config)
     X_train["g5_gene_baseline"] = loco_train
 
-    # Train (white-box models)
-    print("\nTraining white-box models...")
+    # Train formula models
+    print("\nTraining formula-based models...")
     y_train = train_labels["label"].to_numpy(dtype=np.float64)
     from src.prediction.features import build_cell_features as _bcf, build_lineage_onehot as _blo
     train_cell_feats = _bcf(
@@ -566,8 +453,8 @@ def run_real(labels, config, data_dir, output_dir, args):
     g1 = _bgsf(gene_meta, gmm, ew)
     g2 = _bgepf(expression)
 
-    from src.prediction.whitebox import train_whitebox_models as _train_wb
-    wb_models = _train_wb(
+    from src.prediction.formula import train_formula_models as _train_fm
+    fm_models = _train_fm(
         X_train, y_train,
         train_labels["cell_line_id"].to_numpy(),
         train_labels["perturbation_gene"].to_numpy(),
@@ -577,8 +464,6 @@ def run_real(labels, config, data_dir, output_dir, args):
         cell_features=train_cell_feats,
         gene_bl=gene_bl,
         cell_bl=cell_bl,
-        svd_dot=svd_dot,
-        cf_predictions=cf_cold,
         cold_genes=val_cold_genes,
         config=config,
     )
@@ -591,32 +476,16 @@ def run_real(labels, config, data_dir, output_dir, args):
 
     # Predict
     print("\nPredicting...")
-    from src.prediction.baselines import predict_additive as _predict_additive
-    from src.prediction.whitebox import predict_whitebox as _predict_whitebox
-
-    # White-box predictions
-    wb_preds = _predict_whitebox(
+    from src.prediction.formula import predict_formula as _predict_formula
+    fm_preds = _predict_formula(
         X_val,
         val_labels["cell_line_id"].to_numpy(),
         val_labels["perturbation_gene"].to_numpy(),
         gene_bl=gene_bl,
         cell_bl=cell_bl,
-        svd_dot=svd_dot,
-        cf_predictions=cf_cold,
         cold_genes=cold_genes,
-        models=wb_models,
+        models=fm_models,
         add_jitter=True,
-    )
-    # Baseline: additive only
-    svd_w = config.get("prediction", {}).get("whitebox", {}).get("svd_weight", 0.5)
-    cf_w = config.get("prediction", {}).get("whitebox", {}).get("cf_weight", 0.6)
-    add_preds = _predict_additive(
-        val_labels[["cell_line_id", "perturbation_gene"]], gene_bl, cell_bl,
-    )
-    add_svd_preds = _predict_additive(
-        val_labels[["cell_line_id", "perturbation_gene"]], gene_bl, cell_bl,
-        svd_dot_products=svd_dot, svd_weight=svd_w,
-        cf_predictions=cf_cold, cf_weight=cf_w,
     )
 
     # Score — overall and per-regime
@@ -624,25 +493,23 @@ def run_real(labels, config, data_dir, output_dir, args):
     print("RESULTS")
     print("=" * 60)
     print("\n--- Overall ---")
-    _score(pd.DataFrame({"label": add_preds}), val_labels, data_dir, "additive")
-    _score(pd.DataFrame({"label": add_svd_preds}), val_labels, data_dir, "additive+SVD")
-    _score(pd.DataFrame({"label": wb_preds}), val_labels, data_dir, "whitebox")
+    _score(pd.DataFrame({"label": fm_preds}), val_labels, data_dir, "formula")
 
     warm_mask = ~val_labels["perturbation_gene"].isin(cold_genes)
     cold_mask = val_labels["perturbation_gene"].isin(cold_genes)
 
     if warm_mask.any():
         print("\n--- Warm regime (matrix completion) ---")
-        _score(pd.DataFrame({"label": wb_preds[warm_mask.values]}),
-               val_labels[warm_mask.values].reset_index(drop=True), data_dir, "WB-WARM")
+        _score(pd.DataFrame({"label": fm_preds[warm_mask.values]}),
+               val_labels[warm_mask.values].reset_index(drop=True), data_dir, "FM-WARM")
     if cold_mask.any():
         print("\n--- Cold regime (cold-start) ---")
-        _score(pd.DataFrame({"label": wb_preds[cold_mask.values]}),
-               val_labels[cold_mask.values].reset_index(drop=True), data_dir, "WB-COLD")
+        _score(pd.DataFrame({"label": fm_preds[cold_mask.values]}),
+               val_labels[cold_mask.values].reset_index(drop=True), data_dir, "FM-COLD")
 
     # Save and run official scoring
     submission_df = val_labels[["cell_line_id", "perturbation_gene"]].copy()
-    submission_df["label"] = wb_preds
+    submission_df["label"] = fm_preds
     submission_df.to_csv(output_dir / "val_submission.csv", index=False)
     val_labels[["cell_line_id", "perturbation_gene", "label"]].to_csv(
         output_dir / "val_answer.csv", index=False,
@@ -654,7 +521,7 @@ def run_real(labels, config, data_dir, output_dir, args):
     print("=" * 60)
     _run_official_scoring(output_dir / "val_submission.csv", output_dir / "val_answer.csv", data_dir)
 
-    return {"whitebox": wb_preds, "additive": add_svd_preds, "val_labels": val_labels}
+    return {"formula": fm_preds, "val_labels": val_labels}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

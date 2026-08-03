@@ -1,11 +1,11 @@
-"""Cross-validation framework for gene dependency prediction — white-box edition.
+"""Cross-validation framework for gene dependency prediction — formula edition.
 
 Three protocols:
   1. Group-by-gene 5-fold — primary, simulates cold-start
   2. Group-by-cell 5-fold — secondary, simulates new cell lines
   3. Random-pair split — auxiliary, fast hyperparameter tuning
 
-All protocols use interpretable white-box models exclusively.
+All protocols use interpretable formula-based models exclusively.
 All out-of-fold computation prevents leakage.
 """
 
@@ -102,7 +102,7 @@ def validate_group_by_gene(
 ) -> dict[str, Any]:
     """Primary CV: hold out 20% of genes entirely per fold.
 
-    Simulates cold-start generalization. Uses interpretable white-box models.
+    Simulates cold-start generalization. Uses interpretable formula-based models.
     """
     if config is None:
         config = {}
@@ -224,9 +224,9 @@ def validate_group_by_gene(
         train_lineage = build_lineage_onehot(cell_meta, list(train_labels["cell_line_id"].unique()))
         train_cell_feats = pd.concat([train_cell_feats, train_lineage], axis=1)
 
-        # Train white-box models
-        from .whitebox import train_whitebox_models, predict_whitebox
-        wb_models = train_whitebox_models(
+        # Train formula models
+        from .formula import train_formula_models, predict_formula
+        wb_models = train_formula_models(
             X_train, y_train, train_cell_arr, train_gene_arr,
             expression=expression,
             gene_static_features=g1,
@@ -241,7 +241,7 @@ def validate_group_by_gene(
         )
 
         # Predict
-        preds_val = predict_whitebox(
+        preds_val = predict_formula(
             X_val, val_cell_arr, val_gene_arr,
             gene_bl=gene_bl, cell_bl=cell_bl,
             svd_dot=svd_dot,
@@ -285,7 +285,7 @@ def validate_group_by_cell(
     """Secondary CV: hold out 20% of cells entirely per fold.
 
     Simulates new-cell-line robustness. Cell biases imputed from features.
-    Uses interpretable white-box models.
+    Uses interpretable formula-based models.
     """
     if config is None:
         config = {}
@@ -405,9 +405,9 @@ def validate_group_by_cell(
         train_lineage = build_lineage_onehot(cell_meta, list(train_cells_set))
         train_cell_feats = pd.concat([train_cell_feats, train_lineage], axis=1)
 
-        # Train white-box models
-        from .whitebox import train_whitebox_models, predict_whitebox
-        wb_models = train_whitebox_models(
+        # Train formula models
+        from .formula import train_formula_models, predict_formula
+        wb_models = train_formula_models(
             X_train, y_train, train_cell_arr, train_gene_arr,
             expression=expression,
             gene_static_features=g1,
@@ -422,7 +422,7 @@ def validate_group_by_cell(
         )
 
         # Predict
-        preds_val = predict_whitebox(
+        preds_val = predict_formula(
             X_val, val_cell_arr, val_gene_arr,
             gene_bl=gene_bl, cell_bl=cell_bl,
             svd_dot=svd_dot,

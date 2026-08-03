@@ -82,8 +82,8 @@ prediction:
     pathway_pca_components: 20
     include_res_delta: true         # Δ_RES via prefix-sum trick (now fast)
 
-  # All models are interpretable white-box models (see whitebox: section below).
-  # No tree ensembles, gradient boosting, or neural networks are used.
+  # All models are interpretable formula-based models (see formula: section below).
+  # No tree ensembles, gradient boosting, neural networks, or matrix factorization.
 
   calibration:
     alphas: [0.1, 1.0, 10.0, 100.0, 1000.0]
@@ -104,34 +104,33 @@ prediction:
   # Output
   output_dir: "outputs/prediction"
 
-  # ── White-box model configuration ────────────────────────────────────────
+  # ── Formula-based model configuration ────────────────────────────────────
+  formula:
+    # Gene essentiality formula: μ̂_g = Ridge(gene_features)
+    gene_alpha: 1.0                  # Ridge regularization (auto-tuned via CV)
+
+    # Cell vulnerability formula: β̂_c = Ridge(cell_features)
+    cell_alpha: 10.0                 # Ridge regularization (stronger prior)
+
+    # Interaction formula regularization
+    interaction_alpha: 1.0           # Module×Indicator Ridge alpha
+    expr_alpha: 1.0                  # Expression effect Ridge alpha
+    match_alpha: 1.0                 # Module-match Ridge alpha
+
+    # Cold-start: pathway-similarity KNN transfer
+    cold_knn: 20                     # Number of warm neighbors for cold genes
+
+    # Interaction blend: RidgeCV alpha search
+    blend_alphas: [0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]
+
+  # ── Legacy white-box config (preserved for reference; not used by formula models)
   whitebox:
     svd_weight: 0.5
     cf_weight: 0.6
-
-    factor_analysis:
-      n_components: 80
-      max_iter: 3000
-
-    elasticnet:
-      l1_ratio: 0.9
-      n_alphas: 50
-      max_iter: 5000
-
-    pca_ridge:
-      n_components: 100
-      ridge_alpha: 10.0
-
-    pls:
-      n_components: 40
-
-    spline_gam:
-      max_features: 20
-      smooth: 0.2
-
-    als:
-      n_factors: 20
-      regularization: 1.0
-      max_iter: 30
-
+    factor_analysis: {n_components: 80, max_iter: 3000}
+    elasticnet: {l1_ratio: 0.9, n_alphas: 50, max_iter: 5000}
+    pca_ridge: {n_components: 100, ridge_alpha: 10.0}
+    pls: {n_components: 40}
+    spline_gam: {max_features: 20, smooth: 0.2}
+    als: {n_factors: 20, regularization: 1.0, max_iter: 30}
     blend_alphas: [0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]

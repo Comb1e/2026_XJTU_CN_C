@@ -1,4 +1,4 @@
-"""Integration tests for the full prediction pipeline — white-box edition."""
+"""Integration tests for the full prediction pipeline — formula edition."""
 
 import sys
 from pathlib import Path
@@ -14,14 +14,14 @@ from src.utils import load_config
 
 
 class TestIntegration:
-    """End-to-end integration test with white-box interpretable models."""
+    """End-to-end integration test with formula-based interpretable models."""
 
     @pytest.fixture(scope="module")
     def config(self):
         return load_config()
 
     def test_full_pipeline_small_subset(self, config):
-        """Run train+predict on a small subset of real data with white-box models."""
+        """Run train+predict on a small subset of real data with formula-based models."""
         from src.prediction.features import (
             build_all_features, build_gene_static_features,
             build_gene_expression_profile_features, build_cell_features,
@@ -32,7 +32,7 @@ class TestIntegration:
             build_collaborative_features, build_gene_similarity_cf,
             compute_loco_gene_means,
         )
-        from src.prediction.whitebox import train_whitebox_models, predict_whitebox
+        from src.prediction.formula import train_formula_models, predict_formula
 
         data_dir = Path(config["paths"]["data_dir"])
         # Read all labels then sample 100 random genes for a balanced subset
@@ -105,8 +105,8 @@ class TestIntegration:
 
         print(f"  Features: {X.shape[1]}, cold genes: {len(cold)}")
 
-        # Train white-box models
-        models = train_whitebox_models(
+        # Train formula-based models
+        models = train_formula_models(
             X, y, cell_ids, gene_ids,
             expression=expression,
             gene_static_features=g1,
@@ -120,7 +120,7 @@ class TestIntegration:
         )
 
         # Predict
-        preds = predict_whitebox(
+        preds = predict_formula(
             X, cell_ids, gene_ids,
             gene_bl=gene_bl, cell_bl=cell_bl,
             svd_dot=svd_dot,
