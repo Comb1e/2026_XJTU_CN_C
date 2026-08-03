@@ -23,7 +23,6 @@ from .baselines import (
     impute_gene_factors, impute_cell_factors,
     build_collaborative_features,
 )
-from .models import train_models, predict_all
 from .metrics import compute_metrics_df
 
 

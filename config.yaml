@@ -82,54 +82,9 @@ prediction:
     pathway_pca_components: 20
     include_res_delta: true         # Δ_RES via prefix-sum trick (now fast)
 
-  # Model hyperparameters
-  models:
-    model_a:
-      max_iter: 800
-      learning_rate: 0.03
-      max_leaf_nodes: 255
-      min_samples_leaf: 20
-      l2_regularization: 0.5
-      max_features: 0.8
-      validation_fraction: 0.1
-      n_iter_no_change: 30
-    model_b:
-      max_iter: 800
-      learning_rate: 0.03
-      max_leaf_nodes: 255
-      min_samples_leaf: 20
-      l2_regularization: 0.5
-      max_features: 0.8
-      validation_fraction: 0.1
-      n_iter_no_change: 30
-    model_d:
-      n_estimators: 500
-      max_depth: 8
-      learning_rate: 0.03
-      subsample: 0.8
-      colsample_bytree: 0.8
-      reg_lambda: 1.0
-      reg_alpha: 0.0
-    model_e:
-      n_estimators: 500
-      learning_rate: 0.03
-      num_leaves: 127
-      max_depth: 10
-      min_child_samples: 30
-      subsample: 0.8
-      colsample_bytree: 0.8
-      reg_lambda: 1.0
-      reg_alpha: 0.0
+  # All models are interpretable white-box models (see whitebox: section below).
+  # No tree ensembles, gradient boosting, or neural networks are used.
 
-  # Model blending
-  blending:
-    alpha_a: 0.35                  # Model A weight (HGBR, cold-safe)
-    alpha_b: 0.15                  # Model B weight (zeroed for cold-start genes)
-    alpha_c: 0.0                   # Model C weight (pairwise ranking, default off)
-    alpha_d: 0.25                  # Model D weight (XGBoost, cold-safe)
-    alpha_e: 0.25                  # Model E weight (LightGBM LambdaMART, cold-safe)
-
-  # Calibration
   calibration:
     alphas: [0.1, 1.0, 10.0, 100.0, 1000.0]
     clip_range: [-3.0, 5.0]
@@ -137,7 +92,7 @@ prediction:
   # Baselines
   baselines:
     prior_weight: 10.0             # Empirical Bayes shrinkage strength
-    svd_k: 50                      # Latent dimensions for SVD factorization
+    svd_k: 100                     # Latent dimensions for SVD factorization
     knn_k: 20                      # Neighbors for collaborative filtering
     gene_teacher_n_folds: 5        # CV folds for gene baseline teacher
 
@@ -151,27 +106,32 @@ prediction:
 
   # ── White-box model configuration ────────────────────────────────────────
   whitebox:
-    svd_weight: 0.3
+    svd_weight: 0.5
     cf_weight: 0.6
 
     factor_analysis:
-      n_components: 40
-      max_iter: 2000
+      n_components: 80
+      max_iter: 3000
 
     elasticnet:
-      l1_ratio: 0.5
-      n_alphas: 100
+      l1_ratio: 0.9
+      n_alphas: 50
       max_iter: 5000
 
     pca_ridge:
-      n_components: 80
-      ridge_alpha: 1.0
+      n_components: 100
+      ridge_alpha: 10.0
 
     pls:
-      n_components: 30
+      n_components: 40
 
     spline_gam:
-      max_features: 15
-      smooth: 0.3
+      max_features: 20
+      smooth: 0.2
 
-    blend_alphas: [0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]
+    als:
+      n_factors: 20
+      regularization: 1.0
+      max_iter: 30
+
+    blend_alphas: [0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]

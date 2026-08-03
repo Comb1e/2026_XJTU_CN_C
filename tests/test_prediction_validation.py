@@ -1,4 +1,4 @@
-"""Tests for src/prediction/validation.py."""
+"""Tests for src/prediction/validation.py CV framework."""
 
 import sys
 from pathlib import Path
@@ -10,14 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.prediction.validation import validate_group_by_gene, validate_group_by_cell
 from src.prediction.baselines import shrink_gene_means, shrink_cell_means
-from src.prediction.features import (
-    build_gene_static_features, build_gene_expression_profile_features,
-    build_cell_features, build_lineage_onehot, build_pair_features,
-    assemble_feature_table,
-)
-from src.preprocess import build_gene_module_map, compute_evidence_weights
 from src.utils import load_config
 
 
@@ -41,29 +34,40 @@ class TestGroupByGeneCV:
                 f"Overlap: {train_genes & val_genes}"
 
     def test_validate_group_by_gene_runs(self, config):
-        """Smoke test: validation runs without error on small data."""
+        """Integration test: group-by-gene CV runs with real data (small subset)."""
+        from src.prediction.validation import validate_group_by_gene
+        from src.prediction.features import build_all_features
+        from src.prediction.baselines import (
+            compute_loco_gene_means, build_collaborative_features,
+        )
+
+        data_dir = Path(config["paths"]["data_dir"])
+        # Use a small random gene subset for speed
+        all_labels = pd.read_csv(data_dir / "labels" / "gene_dependency.csv")
         rng = np.random.RandomState(42)
-        n = 200
-        X_df = pd.DataFrame({
-            "cell_line_id": [f"C{i % 10}" for i in range(n)],
-            "perturbation_gene": [f"G{i % 20}" for i in range(n)],
-            "pair_z_cg": rng.randn(n).astype(np.float32),
-            "g1_gene_module_00": rng.randn(n).astype(np.float32),
-            "g3_cell_indicator_0": rng.randn(n).astype(np.float32),
-            "g4_pair_delta_ewm_00": rng.randn(n).astype(np.float32),
-            "g5_gene_baseline": rng.randn(n).astype(np.float32),
-            "g5_cell_bias": rng.randn(n).astype(np.float32),
-        })
-        y = (0.5 * X_df["pair_z_cg"].to_numpy() +
-             0.3 * rng.randn(n)).astype(np.float64)
-        cells = X_df["cell_line_id"].to_numpy()
-        genes = X_df["perturbation_gene"].to_numpy()
+        sampled_genes = rng.choice(
+            sorted(all_labels["perturbation_gene"].unique()), size=30, replace=False,
+        )
+        labels = all_labels[all_labels["perturbation_gene"].isin(sampled_genes)].copy()
 
-        # Inject metadata path
-        cfg = dict(config)
-        cfg["paths"] = dict(config["paths"])
+        # Build features
+        X, meta = build_all_features(
+            labels[["cell_line_id", "perturbation_gene"]], config,
+        )
+        gene_bl, loco_train = compute_loco_gene_means(labels)
+        cell_bl = shrink_cell_means(labels)
+        g5 = build_collaborative_features(
+            labels[["cell_line_id", "perturbation_gene"]], gene_bl, cell_bl,
+        )
+        for col in g5.columns:
+            X[col] = g5[col].values if col not in X.columns else X[col]
+        X["g5_gene_baseline"] = loco_train
 
-        summary = validate_group_by_gene(X_df, y, cells, genes, n_folds=3, config=cfg)
+        y = labels["label"].to_numpy(dtype=np.float64)
+        cell_ids = labels["cell_line_id"].to_numpy()
+        gene_ids = labels["perturbation_gene"].to_numpy()
+
+        summary = validate_group_by_gene(X, y, cell_ids, gene_ids, n_folds=3, config=config)
         assert "final_score_mean" in summary
         assert "final_score_std" in summary
         assert summary["n_folds"] == 3
@@ -83,28 +87,38 @@ class TestGroupByCellCV:
             assert len(train_cells & val_cells) == 0
 
     def test_validate_group_by_cell_runs(self, config):
-        """Smoke test: cell-group CV runs without error."""
+        """Integration test: group-by-cell CV runs with real data (small subset)."""
+        from src.prediction.validation import validate_group_by_cell
+        from src.prediction.features import build_all_features
+        from src.prediction.baselines import (
+            compute_loco_gene_means, build_collaborative_features,
+        )
+
+        data_dir = Path(config["paths"]["data_dir"])
+        all_labels = pd.read_csv(data_dir / "labels" / "gene_dependency.csv")
         rng = np.random.RandomState(42)
-        n = 200
-        X_df = pd.DataFrame({
-            "cell_line_id": [f"C{i % 10}" for i in range(n)],
-            "perturbation_gene": [f"G{i % 20}" for i in range(n)],
-            "pair_z_cg": rng.randn(n).astype(np.float32),
-            "g1_gene_module_00": rng.randn(n).astype(np.float32),
-            "g3_cell_indicator_0": rng.randn(n).astype(np.float32),
-            "g4_pair_delta_ewm_00": rng.randn(n).astype(np.float32),
-            "g5_gene_baseline": rng.randn(n).astype(np.float32),
-            "g5_cell_bias": rng.randn(n).astype(np.float32),
-        })
-        y = (0.5 * X_df["pair_z_cg"].to_numpy() +
-             0.3 * rng.randn(n)).astype(np.float64)
-        cells = X_df["cell_line_id"].to_numpy()
-        genes = X_df["perturbation_gene"].to_numpy()
+        sampled_genes = rng.choice(
+            sorted(all_labels["perturbation_gene"].unique()), size=30, replace=False,
+        )
+        labels = all_labels[all_labels["perturbation_gene"].isin(sampled_genes)].copy()
 
-        cfg = dict(config)
-        cfg["paths"] = dict(config["paths"])
+        X, meta = build_all_features(
+            labels[["cell_line_id", "perturbation_gene"]], config,
+        )
+        gene_bl, loco_train = compute_loco_gene_means(labels)
+        cell_bl = shrink_cell_means(labels)
+        g5 = build_collaborative_features(
+            labels[["cell_line_id", "perturbation_gene"]], gene_bl, cell_bl,
+        )
+        for col in g5.columns:
+            X[col] = g5[col].values if col not in X.columns else X[col]
+        X["g5_gene_baseline"] = loco_train
 
-        summary = validate_group_by_cell(X_df, y, cells, genes, n_folds=3, config=cfg)
+        y = labels["label"].to_numpy(dtype=np.float64)
+        cell_ids = labels["cell_line_id"].to_numpy()
+        gene_ids = labels["perturbation_gene"].to_numpy()
+
+        summary = validate_group_by_cell(X, y, cell_ids, gene_ids, n_folds=3, config=config)
         assert "final_score_mean" in summary
         assert summary["n_folds"] == 3
 

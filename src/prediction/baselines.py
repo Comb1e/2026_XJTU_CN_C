@@ -19,7 +19,6 @@ import numpy as np
 import pandas as pd
 from sklearn.decomposition import TruncatedSVD
 from sklearn.linear_model import RidgeCV
-from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.neighbors import NearestNeighbors
 from sklearn.model_selection import cross_val_predict, KFold
 
@@ -143,7 +142,6 @@ def train_gene_baseline_teacher(
     n_folds: int = 5,
     random_state: int = 42,
     extra_features: pd.DataFrame | None = None,
-    model_type: str = "ridge",
 ) -> tuple[Any, dict[str, float], pd.DataFrame]:
     """Train a teacher model to predict gene mean dependency from gene features.
 
@@ -158,7 +156,6 @@ def train_gene_baseline_teacher(
         random_state: random seed.
         extra_features: optional additional gene-level features (e.g., pathway
                        membership, co-expression-KNN, description keywords).
-        model_type: "ridge" (linear, fast) or "xgboost" (nonlinear, higher R²).
 
     Returns:
         (fitted_model, gene_to_oof_prediction, combined_gene_features)
@@ -186,24 +183,11 @@ def train_gene_baseline_teacher(
     # Fill NaN in features
     X = np.nan_to_num(X, nan=0.0)
 
-    if model_type == "xgboost":
-        try:
-            import xgboost as xgb
-            teacher = xgb.XGBRegressor(
-                n_estimators=300, max_depth=5, learning_rate=0.05,
-                subsample=0.8, colsample_bytree=0.8, reg_lambda=1.0,
-                random_state=random_state, n_jobs=-1, verbosity=0,
-            )
-        except ImportError:
-            model_type = "ridge"
-
-    if model_type != "xgboost":
-        # Train Ridge regression for gene baseline prediction
-        from sklearn.linear_model import RidgeCV
-        teacher = RidgeCV(
-            alphas=np.logspace(-1, 3, 20),
-            store_cv_results=False,
-        )
+    # Train Ridge regression for gene baseline prediction (interpretable linear model)
+    teacher = RidgeCV(
+        alphas=np.logspace(-1, 3, 20),
+        store_cv_results=False,
+    )
 
     teacher.fit(X, y)
 
@@ -217,7 +201,7 @@ def train_gene_baseline_teacher(
     from sklearn.metrics import r2_score
     teacher_r2 = r2_score(y, teacher.predict(X))
     oof_r2 = r2_score(y, oof_preds)
-    print(f"  Teacher ({model_type}): train R²={teacher_r2:.4f}, OOF R²={oof_r2:.4f}, "
+    print(f"  Teacher (Ridge): train R²={teacher_r2:.4f}, OOF R²={oof_r2:.4f}, "
           f"corr={np.corrcoef(y, oof_preds)[0,1]:.4f}")
 
     return teacher, gene_to_oof, gene_feats
@@ -386,9 +370,12 @@ def compute_label_svd(
     k: int = 20,
     random_state: int = 42,
 ) -> tuple[np.ndarray, np.ndarray, pd.Index, pd.Index, float]:
-    """Compute TruncatedSVD on the label matrix.
+    """Compute TruncatedSVD on the residual label matrix (after subtracting gene+cell means).
 
-    Returns cell factors U, gene factors V, and the global mean for imputation.
+    Subtracting gene and cell means before SVD focuses latent factors on
+    gene×cell interaction signal rather than main effects already captured
+    by the additive baseline. This produces SVD dot products that are
+    complementary to (not redundant with) gene_mean + cell_bias.
 
     Args:
         labels: training labels DataFrame.
@@ -400,7 +387,7 @@ def compute_label_svd(
     """
     global_mean = float(labels["label"].mean())
 
-    # Build sparse label matrix
+    # Build label matrix
     cells = sorted(labels["cell_line_id"].unique())
     genes = sorted(labels["perturbation_gene"].unique())
     cell_idx = {c: i for i, c in enumerate(cells)}
@@ -412,12 +399,23 @@ def compute_label_svd(
         gi = gene_idx[row["perturbation_gene"]]
         R[ci, gi] = row["label"]
 
-    # Center
-    R_centered = R - global_mean
+    # Subtract gene and cell means to isolate interaction signal
+    gene_means = labels.groupby("perturbation_gene")["label"].mean()
+    cell_means = labels.groupby("cell_line_id")["label"].mean()
+    for gi, g in enumerate(genes):
+        if g in gene_means.index:
+            R[:, gi] -= gene_means[g]
+    for ci, c in enumerate(cells):
+        if c in cell_means.index:
+            R[ci, :] -= (cell_means[c] - global_mean)
 
-    svd = TruncatedSVD(n_components=k, random_state=random_state)
-    U = svd.fit_transform(R_centered)  # cells × k
-    V = svd.components_.T            # genes × k
+    # Center residual matrix
+    R_centered = R - np.mean(R)
+
+    k_actual = min(k, min(len(cells), len(genes)) - 1)
+    svd = TruncatedSVD(n_components=k_actual, random_state=random_state)
+    U = svd.fit_transform(R_centered)  # cells × k_actual
+    V = svd.components_.T            # genes × k_actual
 
     return (U.astype(np.float32), V.astype(np.float32),
             pd.Index(cells), pd.Index(genes), global_mean)

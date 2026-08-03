@@ -402,7 +402,155 @@ class PLSModel:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Component 5: Spline-GAM for key nonlinear features
+# Component 5: Alternating Least Squares (ALS) Matrix Factorization
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class ALSModel:
+    """Alternating Least Squares matrix factorization on residual matrix.
+
+    Decomposes R(c,g) ≈ U_c · V_g + b_c + b_g + μ with L2 regularization.
+    Unlike SVD (which requires complete matrix), ALS only fits observed entries,
+    making it naturally robust to missing (cell, gene) pairs.
+
+    Each latent dimension k has:
+      - cell_factors[:, k]: cell c's score on factor k
+      - gene_factors[:, k]: gene g's loading on factor k
+      - cell_bias[c]: per-cell offset
+      - gene_bias[g]: per-gene offset
+
+    Fully interpretable: predictions are ŷ(c,g) = Σ_k U_{c,k}·V_{g,k} + b_c + b_g + μ
+    """
+
+    def __init__(
+        self,
+        n_factors: int = 50,
+        regularization: float = 0.1,
+        max_iter: int = 30,
+        random_state: int = 42,
+    ):
+        self.n_factors = n_factors
+        self.regularization = regularization
+        self.max_iter = max_iter
+        self.random_state = random_state
+        self.cell_factors_: np.ndarray | None = None
+        self.gene_factors_: np.ndarray | None = None
+        self.cell_bias_: np.ndarray | None = None
+        self.gene_bias_: np.ndarray | None = None
+        self.global_mean_: float = 0.0
+        self.cell_index_: pd.Index | None = None
+        self.gene_index_: pd.Index | None = None
+
+    def fit(
+        self,
+        residuals: np.ndarray,
+        cell_index: pd.Index,
+        gene_index: pd.Index,
+    ) -> "ALSModel":
+        """Fit ALS to the residual matrix using alternating Ridge regression."""
+        n_cells, n_genes = residuals.shape
+        K = min(self.n_factors, min(n_cells, n_genes) - 1)
+        rng = np.random.RandomState(self.random_state)
+
+        # Fill NaN with 0 for initialization (missing pairs)
+        R = np.nan_to_num(residuals, nan=0.0).astype(np.float64)
+        # Create mask of observed entries
+        mask = ~np.isnan(residuals)
+
+        self.global_mean_ = float(np.nanmean(residuals))
+        R_centered = R - self.global_mean_
+
+        # Initialize factors randomly
+        U = rng.randn(n_cells, K).astype(np.float64) * 0.01
+        V = rng.randn(n_genes, K).astype(np.float64) * 0.01
+        b_c = np.zeros(n_cells, dtype=np.float64)
+        b_g = np.zeros(n_genes, dtype=np.float64)
+
+        lam = self.regularization
+
+        for iteration in range(self.max_iter):
+            # Update gene factors V (Ridge: solve for each gene)
+            for g in range(n_genes):
+                observed = mask[:, g]
+                if observed.sum() < 2:
+                    continue
+                U_obs = U[observed]
+                R_obs = R_centered[observed, g] - b_c[observed] - b_g[g]
+                A = U_obs.T @ U_obs + lam * np.eye(K)
+                b_vec = U_obs.T @ R_obs
+                try:
+                    V[g] = np.linalg.solve(A, b_vec)
+                except np.linalg.LinAlgError:
+                    V[g] = np.linalg.lstsq(A, b_vec, rcond=None)[0]
+
+            # Update cell factors U (Ridge: solve for each cell)
+            for c in range(n_cells):
+                observed = mask[c, :]
+                if observed.sum() < 2:
+                    continue
+                V_obs = V[observed]
+                R_obs = R_centered[c, observed] - b_c[c] - b_g[observed]
+                A = V_obs.T @ V_obs + lam * np.eye(K)
+                b_vec = V_obs.T @ R_obs
+                try:
+                    U[c] = np.linalg.solve(A, b_vec)
+                except np.linalg.LinAlgError:
+                    U[c] = np.linalg.lstsq(A, b_vec, rcond=None)[0]
+
+            # Update biases
+            for c in range(n_cells):
+                observed = mask[c, :]
+                if observed.sum() > 0:
+                    b_c[c] = np.mean(
+                        R_centered[c, observed] - U[c] @ V[observed].T - b_g[observed]
+                    )
+            for g in range(n_genes):
+                observed = mask[:, g]
+                if observed.sum() > 0:
+                    b_g[g] = np.mean(
+                        R_centered[observed, g] - U[observed] @ V[g] - b_c[observed]
+                    )
+
+        self.cell_factors_ = U.astype(np.float32)
+        self.gene_factors_ = V.astype(np.float32)
+        self.cell_bias_ = b_c.astype(np.float32)
+        self.gene_bias_ = b_g.astype(np.float32)
+        self.cell_index_ = cell_index
+        self.gene_index_ = gene_index
+
+        return self
+
+    def predict(
+        self,
+        cell_ids: list[str],
+        gene_ids: list[str],
+    ) -> np.ndarray:
+        """Predict ALS component for (cell, gene) pairs."""
+        cell_to_row = {c: i for i, c in enumerate(self.cell_index_)}
+        gene_to_row = {g: i for i, g in enumerate(self.gene_index_)}
+
+        preds = np.full(len(cell_ids), self.global_mean_, dtype=np.float32)
+        for i, (c, g) in enumerate(zip(cell_ids, gene_ids)):
+            if c in cell_to_row and g in gene_to_row:
+                ci = cell_to_row[c]
+                gi = gene_to_row[g]
+                preds[i] = float(
+                    np.dot(self.cell_factors_[ci], self.gene_factors_[gi])
+                    + self.cell_bias_[ci] + self.gene_bias_[gi]
+                    + self.global_mean_
+                )
+        return preds
+
+    def get_top_genes_per_factor(self, k: int, top_n: int = 20) -> list[tuple[str, float]]:
+        """Return top-N genes by absolute loading for factor k."""
+        if self.gene_factors_ is None or self.gene_index_ is None:
+            return []
+        loadings = self.gene_factors_[:, k]
+        idx = np.argsort(-np.abs(loadings))[:top_n]
+        return [(self.gene_index_[i], float(loadings[i])) for i in idx]
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Component 6: Spline-GAM for key nonlinear features
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class SplineGAMModel:
@@ -683,6 +831,7 @@ def train_whitebox_models(
     X_g3 = X[g3_cols].to_numpy(dtype=np.float32)
     X_g4 = X[g4_cols].to_numpy(dtype=np.float32)
     X_full = X[[c for c in X.columns if c not in ("cell_line_id", "perturbation_gene")]].to_numpy(dtype=np.float32)
+    X_full = np.nan_to_num(X_full, nan=0.0)
     feature_names = [c for c in X.columns if c not in ("cell_line_id", "perturbation_gene")]
 
     # ── Additive baseline (Component 0) ──
@@ -792,8 +941,22 @@ def train_whitebox_models(
     components["pls"] = {"preds": pls_preds, "model": pls_model}
     component_preds.append(pls_preds)
 
-    # ── Spline-GAM (Component 5) ──
-    print("  [WB-5] Fitting Spline-GAM on key features...")
+    # ── ALS Matrix Factorization (Component 5) ──
+    print("  [WB-5] Fitting ALS on residual matrix...")
+    als_cfg = wb_cfg.get("als", {})
+    als_model = ALSModel(
+        n_factors=als_cfg.get("n_factors", 50),
+        regularization=als_cfg.get("regularization", 0.1),
+        max_iter=als_cfg.get("max_iter", 30),
+        random_state=42,
+    )
+    als_model.fit(R, cell_index=pd.Index(unique_cells), gene_index=pd.Index(unique_genes))
+    als_preds = als_model.predict(list(cell_ids), list(gene_ids))
+    components["als"] = {"preds": als_preds, "model": als_model}
+    component_preds.append(als_preds)
+
+    # ── Spline-GAM (Component 6) ──
+    print("  [WB-6] Fitting Spline-GAM on key features...")
     spline_cfg = wb_cfg.get("spline_gam", {})
     # Select most important features across groups
     top_feat_indices = _select_top_features_for_spline(
@@ -811,20 +974,22 @@ def train_whitebox_models(
     components["spline_gam"] = {"preds": spline_preds, "model": spline_model}
     component_preds.append(spline_preds)
 
-    # ── Ridge Blend (Component 6: final combiner) ──
-    print("  [WB-6] Blending all white-box components via RidgeCV...")
+    # ── Ridge Blend (Component 7: final combiner) ──
+    print("  [WB-7] Blending all white-box components via RidgeCV...")
+    # Ensure no NaN in component predictions before blending
+    component_preds_clean = [np.nan_to_num(p, nan=0.0) for p in component_preds]
     blend = RidgeBlend(
         alphas=wb_cfg.get("blend_alphas", [0.1, 1.0, 10.0, 100.0, 1000.0]),
         fit_intercept=True,
     )
-    comp_names = ["additive", "factor_analysis", "elasticnet", "pca_ridge", "pls", "spline_gam"]
-    blend.fit(component_preds, y, component_names=comp_names)
+    comp_names = ["additive", "factor_analysis", "elasticnet", "pca_ridge", "pls", "als", "spline_gam"]
+    blend.fit(component_preds_clean, y, component_names=comp_names)
     weights = blend.get_component_weights()
     print(f"    Blend weights: {[(n, f'{w:.4f}') for n, w in weights]}")
     print(f"    Ridge alpha: {blend.alpha_:.4f}")
 
     # Full training prediction
-    blended_preds = blend.predict(component_preds)
+    blended_preds = blend.predict(component_preds_clean)
 
     # Calibration: quantile map blended predictions to label distribution
     print("  Fitting quantile calibration...")
@@ -881,6 +1046,8 @@ def predict_whitebox(
     g4_cols = [c for c in X.columns if c.startswith("g4_")]
     feature_names = [c for c in X.columns if c not in ("cell_line_id", "perturbation_gene")]
     X_full = X[feature_names].to_numpy(dtype=np.float32)
+    # Fill NaN with 0 (missing features treated as neutral)
+    X_full = np.nan_to_num(X_full, nan=0.0)
 
     components = models["components"]
     comp_preds = []
@@ -915,6 +1082,7 @@ def predict_whitebox(
     enet_model = components.get("elasticnet", {}).get("model")
     if enet_model is not None:
         X_enet = X[g4_cols].to_numpy(dtype=np.float64)
+        X_enet = np.nan_to_num(X_enet, nan=0.0)
         enet_preds = enet_model.predict(X_enet)
     else:
         enet_preds = np.zeros(n, dtype=np.float32)
@@ -936,7 +1104,15 @@ def predict_whitebox(
         pls_preds = np.zeros(n, dtype=np.float32)
     comp_preds.append(pls_preds)
 
-    # Component 5: Spline-GAM
+    # Component 5: ALS
+    als_model = components.get("als", {}).get("model")
+    if als_model is not None:
+        als_preds = als_model.predict(list(cell_ids), list(gene_ids))
+    else:
+        als_preds = np.zeros(n, dtype=np.float32)
+    comp_preds.append(als_preds)
+
+    # Component 6: Spline-GAM
     spline_model = components.get("spline_gam", {}).get("model")
     if spline_model is not None and spline_model.selected_features_:
         top_indices = spline_model.selected_features_
@@ -946,9 +1122,10 @@ def predict_whitebox(
         spline_preds = np.zeros(n, dtype=np.float32)
     comp_preds.append(spline_preds)
 
-    # Blend
+    # Blend — ensure no NaN in component predictions
+    comp_preds_clean = [np.nan_to_num(p, nan=0.0) for p in comp_preds]
     blend = models["blend"]
-    final = blend.predict(comp_preds)
+    final = blend.predict(comp_preds_clean)
 
     # Calibration: match label distribution
     calibrator = models.get("calibrator")

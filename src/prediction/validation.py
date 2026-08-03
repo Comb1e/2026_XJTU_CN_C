@@ -1,14 +1,12 @@
-"""Cross-validation framework for gene dependency prediction.
+"""Cross-validation framework for gene dependency prediction — white-box edition.
 
 Three protocols:
   1. Group-by-gene 5-fold — primary, simulates cold-start
   2. Group-by-cell 5-fold — secondary, simulates new cell lines
   3. Random-pair split — auxiliary, fast hyperparameter tuning
 
-All protocols enforce strict leakage control:
-  - G5 teacher features computed out-of-fold
-  - Neighbor essentiality excludes held-out data
-  - Metrics computed only on held-out pairs per cell
+All protocols use interpretable white-box models exclusively.
+All out-of-fold computation prevents leakage.
 """
 
 from __future__ import annotations
@@ -22,20 +20,76 @@ import pandas as pd
 from sklearn.model_selection import GroupKFold
 
 from .metrics import compute_metrics_df
-from .models import (
-    train_models, predict_all, prepare_features_a, prepare_features_b,
-    blend_ranks, calibrate_rmse, apply_calibration,
-)
 from .baselines import (
-    compute_loco_gene_means, shrink_gene_means, shrink_cell_means,
+    compute_loco_gene_means, shrink_cell_means,
     train_gene_baseline_teacher, predict_gene_baselines,
-    train_cell_bias_imputer, impute_cell_biases,
-    build_collaborative_features,
+    build_collaborative_features, build_gene_similarity_cf,
+    compute_label_svd, impute_gene_factors,
 )
 from .features import (
     build_gene_static_features, build_gene_expression_profile_features,
+    build_cell_features, build_lineage_onehot,
 )
 
+
+# ── Shared data loading ─────────────────────────────────────────────────────
+
+def _load_supporting_data(config: dict[str, Any]) -> dict[str, Any]:
+    """Load metadata, expression, and gene features shared across folds."""
+    data_dir = Path(config["paths"]["data_dir"])
+    outputs_dir = Path(config["paths"]["output_dir"])
+
+    gene_meta = pd.read_csv(data_dir / "metadata" / "gene_metadata.csv")
+    pathway_meta = pd.read_csv(data_dir / "metadata" / "pathway_metadata.csv")
+    cell_meta = pd.read_csv(data_dir / "metadata" / "cell_line_metadata.csv")
+    expression = pd.read_csv(
+        data_dir / "features" / "cell_expression_zscore.csv", index_col=0,
+    )
+
+    from ..preprocess import build_gene_module_map, compute_evidence_weights
+    gmm = build_gene_module_map(gene_meta)
+    ew = compute_evidence_weights(gene_meta)
+    g1 = build_gene_static_features(gene_meta, gmm, ew)
+    g2 = build_gene_expression_profile_features(expression)
+
+    return {
+        "gene_meta": gene_meta,
+        "pathway_meta": pathway_meta,
+        "cell_meta": cell_meta,
+        "expression": expression,
+        "gene_module_map": gmm,
+        "evidence_weights": ew,
+        "g1": g1,
+        "g2": g2,
+    }
+
+
+def _build_teacher(
+    train_labels: pd.DataFrame,
+    g1: pd.DataFrame,
+    g2: pd.DataFrame,
+    gene_meta: pd.DataFrame,
+    pathway_meta: pd.DataFrame,
+    expression: pd.DataFrame,
+    config: dict[str, Any],
+) -> tuple[Any, dict[str, float], pd.DataFrame]:
+    """Build gene baseline teacher with all available gene-level features."""
+    from .baselines import (
+        build_pw140_membership_features, compute_coexpression_knn_features,
+        build_description_keyword_features,
+    )
+    pw140 = build_pw140_membership_features(gene_meta, pathway_meta)
+    knn_k = config.get("prediction", {}).get("baselines", {}).get("knn_k", 20)
+    coexpr_knn = compute_coexpression_knn_features(expression, train_labels, k=knn_k)
+    desc_feats = build_description_keyword_features(gene_meta)
+    teacher_extra = pd.concat([pw140, coexpr_knn, desc_feats], axis=1)
+    teacher, oof_preds, gene_feats = train_gene_baseline_teacher(
+        g1, g2, train_labels, extra_features=teacher_extra,
+    )
+    return teacher, oof_preds, gene_feats
+
+
+# ── Protocol 1: Group-by-gene CV ────────────────────────────────────────────
 
 def validate_group_by_gene(
     X: pd.DataFrame,
@@ -48,9 +102,18 @@ def validate_group_by_gene(
 ) -> dict[str, Any]:
     """Primary CV: hold out 20% of genes entirely per fold.
 
-    Simulates cold-start generalization. Gene baselines for held-out genes
-    come only from training-fold data (teacher model).
+    Simulates cold-start generalization. Uses interpretable white-box models.
     """
+    if config is None:
+        config = {}
+    data = _load_supporting_data(config)
+    gene_meta = data["gene_meta"]
+    pathway_meta = data["pathway_meta"]
+    cell_meta = data["cell_meta"]
+    expression = data["expression"]
+    g1 = data["g1"]
+    g2 = data["g2"]
+
     unique_genes = np.unique(gene_ids)
     kf = GroupKFold(n_splits=n_folds)
     all_metrics = []
@@ -59,70 +122,45 @@ def validate_group_by_gene(
     for fold_idx, (train_idx, val_idx) in enumerate(
         kf.split(np.arange(len(y)), groups=gene_ids)
     ):
-        train_genes = set(gene_ids[train_idx])
-        val_genes = set(gene_ids[val_idx])
+        train_genes_set = set(gene_ids[train_idx])
+        val_genes_set = set(gene_ids[val_idx])
+        val_cold = val_genes_set - train_genes_set
 
-        # Train models on train fold
         X_train = X.iloc[train_idx].copy()
         X_val = X.iloc[val_idx].copy()
         y_train = y[train_idx]
         y_val = y[val_idx]
+        train_cell_arr = cell_ids[train_idx]
+        train_gene_arr = gene_ids[train_idx]
+        val_cell_arr = cell_ids[val_idx]
+        val_gene_arr = gene_ids[val_idx]
 
-        # Recompute G5 features from fold-train labels only (no leakage)
+        # OOF baselines
         train_labels = pd.DataFrame({
-            "cell_line_id": cell_ids[train_idx],
-            "perturbation_gene": gene_ids[train_idx],
+            "cell_line_id": train_cell_arr,
+            "perturbation_gene": train_gene_arr,
             "label": y_train,
         })
         gene_bl, loco_train = compute_loco_gene_means(train_labels)
         cell_bl = shrink_cell_means(train_labels)
 
-        # Overwrite G5 in X_train with fold-train values (LOCO for gene baseline)
+        # Overwrite G5 in X_train with OOF values
         train_g5 = build_collaborative_features(
             pd.DataFrame({
-                "cell_line_id": cell_ids[train_idx],
-                "perturbation_gene": gene_ids[train_idx],
+                "cell_line_id": train_cell_arr,
+                "perturbation_gene": train_gene_arr,
             }),
             gene_bl, cell_bl,
         )
-        # Override with LOCO values for honest training
         train_g5["g5_gene_baseline"] = loco_train
         for col in train_g5.columns:
             X_train[col] = train_g5[col].values
 
-        # For val genes (simulating cold-start): teacher prediction
-        val_cold = val_genes - train_genes
-        if val_cold and config is not None:
+        # Teacher for cold genes
+        if val_cold:
             try:
-                # Build teacher from fold-train data using metadata
-                from .features import (
-                    build_gene_static_features, build_gene_expression_profile_features,
-                )
-                from .baselines import (
-                    build_pw140_membership_features, compute_coexpression_knn_features,
-                    build_description_keyword_features,
-                )
-                metadata_dir = Path(config["paths"]["metadata_dir"])
-                gene_meta = pd.read_csv(metadata_dir / "gene_metadata.csv")
-                path_meta = pd.read_csv(metadata_dir / "pathway_metadata.csv")
-                features_dir = Path(config["paths"]["features_dir"])
-                expression = pd.read_csv(features_dir / "cell_expression_zscore.csv", index_col=0)
-                from ..preprocess import build_gene_module_map, compute_evidence_weights
-                gmm = build_gene_module_map(gene_meta, path_meta)
-                ew = compute_evidence_weights(gene_meta, config)
-                g1 = build_gene_static_features(gene_meta, gmm, ew)
-                g2 = build_gene_expression_profile_features(expression)
-                # Build extra gene-level features for teacher (OOF: from fold-train only)
-                pw140 = build_pw140_membership_features(gene_meta, path_meta)
-                knn_k = config.get("prediction", {}).get("baselines", {}).get("knn_k", 20)
-                coexpr_knn = compute_coexpression_knn_features(
-                    expression, train_labels, k=knn_k,
-                )
-                desc_feats = build_description_keyword_features(gene_meta)
-                teacher_extra = pd.concat([pw140, coexpr_knn, desc_feats], axis=1)
-                teacher, oof_preds, gene_feats = train_gene_baseline_teacher(
-                    g1, g2, train_labels, n_folds=min(5, len(train_genes)),
-                    extra_features=teacher_extra,
+                teacher, oof_preds, gene_feats = _build_teacher(
+                    train_labels, g1, g2, gene_meta, pathway_meta, expression, config,
                 )
                 cold_baselines = predict_gene_baselines(
                     teacher, gene_feats, list(val_cold),
@@ -134,39 +172,89 @@ def validate_group_by_gene(
                 warnings.warn(f"Teacher prediction failed (fold {fold_idx}): {e}")
 
         # Ensure all val genes/cells have baseline entries
-        for g in val_genes:
+        for g in val_genes_set:
             if g not in gene_bl:
                 gene_bl[g] = 0.0
-        for c in np.unique(cell_ids[val_idx]):
+        for c in np.unique(val_cell_arr):
             if c not in cell_bl:
                 cell_bl[c] = 0.0
 
-        X_val_g5 = build_collaborative_features(
+        # Val G5 features
+        val_g5 = build_collaborative_features(
             pd.DataFrame({
-                "cell_line_id": cell_ids[val_idx],
-                "perturbation_gene": gene_ids[val_idx],
+                "cell_line_id": val_cell_arr,
+                "perturbation_gene": val_gene_arr,
             }),
             gene_bl, cell_bl,
         )
-        for col in X_val_g5.columns:
-            X_val[col] = X_val_g5[col].values
+        for col in val_g5.columns:
+            X_val[col] = val_g5[col].values
 
-        # Train on fold
-        fold_models = train_models(
-            X_train, y_train, cell_ids[train_idx], gene_ids[train_idx],
+        # SVD
+        n_train_genes = train_labels["perturbation_gene"].nunique()
+        n_train_cells = train_labels["cell_line_id"].nunique()
+        svd_k = min(
+            config.get("prediction", {}).get("baselines", {}).get("svd_k", 50),
+            n_train_genes - 1, n_train_cells - 1, 50,
+        )
+        svd_k = max(1, svd_k)
+        U, V, svd_cell_idx, svd_gene_idx, svd_global_mean = compute_label_svd(
+            train_labels, k=svd_k,
+        )
+        svd_dot = {}
+        cell_to_svd = {c: i for i, c in enumerate(svd_cell_idx)}
+        gene_to_svd = {g: i for i, g in enumerate(svd_gene_idx)}
+        for _, row in pd.DataFrame({
+            "cell_line_id": val_cell_arr, "perturbation_gene": val_gene_arr,
+        }).iterrows():
+            c, g = row["cell_line_id"], row["perturbation_gene"]
+            if c in cell_to_svd and g in gene_to_svd:
+                svd_dot[(c, g)] = float(np.dot(U[cell_to_svd[c]], V[gene_to_svd[g]]))
+
+        # CF for cold genes
+        cf_cold = build_gene_similarity_cf(
+            train_labels, gene_meta, pathway_meta, expression, val_cold, k=20,
+        )
+
+        # Cell features for training
+        train_cell_feats = build_cell_features(
+            Path(config["paths"]["output_dir"]),
+            list(train_labels["cell_line_id"].unique()),
+        )
+        train_lineage = build_lineage_onehot(cell_meta, list(train_labels["cell_line_id"].unique()))
+        train_cell_feats = pd.concat([train_cell_feats, train_lineage], axis=1)
+
+        # Train white-box models
+        from .whitebox import train_whitebox_models, predict_whitebox
+        wb_models = train_whitebox_models(
+            X_train, y_train, train_cell_arr, train_gene_arr,
+            expression=expression,
+            gene_static_features=g1,
+            gene_expr_profile_features=g2,
+            cell_features=train_cell_feats,
+            gene_bl=gene_bl,
+            cell_bl=cell_bl,
+            svd_dot=svd_dot,
+            cf_predictions=cf_cold,
             cold_genes=val_cold if val_cold else set(),
             config=config,
         )
 
         # Predict
-        preds_val = predict_all(
-            X_val, cell_ids[val_idx], gene_ids[val_idx], fold_models,
+        preds_val = predict_whitebox(
+            X_val, val_cell_arr, val_gene_arr,
+            gene_bl=gene_bl, cell_bl=cell_bl,
+            svd_dot=svd_dot,
+            cf_predictions=cf_cold,
+            cold_genes=val_cold if val_cold else set(),
+            models=wb_models,
+            add_jitter=True,
         )
 
         # Compute metrics
         df_val = pd.DataFrame({
-            "cell_line_id": cell_ids[val_idx],
-            "perturbation_gene": gene_ids[val_idx],
+            "cell_line_id": val_cell_arr,
+            "perturbation_gene": val_gene_arr,
             "prediction": preds_val,
             "truth": y_val,
         })
@@ -174,15 +262,16 @@ def validate_group_by_gene(
         all_metrics.append(fold_metrics)
         all_folds.append({
             "fold": fold_idx,
-            "n_train_genes": len(train_genes),
-            "n_val_genes": len(val_genes),
-            "n_cold_genes": len(val_genes - train_genes),
+            "n_train_genes": len(train_genes_set),
+            "n_val_genes": len(val_genes_set),
+            "n_cold_genes": len(val_cold),
         })
 
-    # Aggregate
     summary = _aggregate_folds(all_metrics, all_folds, "group_by_gene")
     return summary
 
+
+# ── Protocol 2: Group-by-cell CV ────────────────────────────────────────────
 
 def validate_group_by_cell(
     X: pd.DataFrame,
@@ -195,9 +284,19 @@ def validate_group_by_cell(
 ) -> dict[str, Any]:
     """Secondary CV: hold out 20% of cells entirely per fold.
 
-    Simulates new-cell-line robustness. Cell biases for held-out cells
-    are imputed from cell features.
+    Simulates new-cell-line robustness. Cell biases imputed from features.
+    Uses interpretable white-box models.
     """
+    if config is None:
+        config = {}
+    data = _load_supporting_data(config)
+    gene_meta = data["gene_meta"]
+    pathway_meta = data["pathway_meta"]
+    cell_meta = data["cell_meta"]
+    expression = data["expression"]
+    g1 = data["g1"]
+    g2 = data["g2"]
+
     unique_cells = np.unique(cell_ids)
     kf = GroupKFold(n_splits=n_folds)
     all_metrics = []
@@ -206,87 +305,136 @@ def validate_group_by_cell(
     for fold_idx, (train_idx, val_idx) in enumerate(
         kf.split(np.arange(len(y)), groups=cell_ids)
     ):
-        train_cells = set(cell_ids[train_idx])
-        val_cells = set(cell_ids[val_idx])
+        train_cells_set = set(cell_ids[train_idx])
+        val_cells_set = set(cell_ids[val_idx])
+        val_cold_cells = val_cells_set - train_cells_set
 
         X_train = X.iloc[train_idx].copy()
         X_val = X.iloc[val_idx].copy()
         y_train = y[train_idx]
         y_val = y[val_idx]
+        train_cell_arr = cell_ids[train_idx]
+        train_gene_arr = gene_ids[train_idx]
+        val_cell_arr = cell_ids[val_idx]
+        val_gene_arr = gene_ids[val_idx]
 
-        # Out-of-fold cell biases and gene baselines
+        # OOF baselines
         train_labels = pd.DataFrame({
-            "cell_line_id": cell_ids[train_idx],
-            "perturbation_gene": gene_ids[train_idx],
+            "cell_line_id": train_cell_arr,
+            "perturbation_gene": train_gene_arr,
             "label": y_train,
         })
         cell_bl = shrink_cell_means(train_labels)
-        gene_bl = shrink_gene_means(train_labels)
+        gene_bl, loco_train = compute_loco_gene_means(train_labels)
 
-        # Overwrite G5 in X_train with fold-train values (no leakage)
+        # Overwrite G5 in X_train
         train_g5 = build_collaborative_features(
             pd.DataFrame({
-                "cell_line_id": cell_ids[train_idx],
-                "perturbation_gene": gene_ids[train_idx],
+                "cell_line_id": train_cell_arr,
+                "perturbation_gene": train_gene_arr,
             }),
             gene_bl, cell_bl,
         )
+        train_g5["g5_gene_baseline"] = loco_train
         for col in train_g5.columns:
             X_train[col] = train_g5[col].values
 
         # Impute cell biases for held-out cells
-        val_cold_cells = val_cells - train_cells
-        if val_cold_cells and config is not None:
-            try:
-                from .features import build_cell_features
-                from .baselines import train_cell_bias_imputer, impute_cell_biases
-                # Build cell features for TRAINING cells (to fit the imputer)
-                train_cell_feats = build_cell_features(
-                    Path(config["paths"]["output_dir"]),
-                    list(train_cells),
-                )
-                imputer, _ = train_cell_bias_imputer(train_cell_feats, train_labels)
-                # Build cell features for VAL cells (to impute)
-                val_cell_feats = build_cell_features(
-                    Path(config["paths"]["output_dir"]),
-                    list(val_cold_cells),
-                )
-                imputed = impute_cell_biases(imputer, val_cell_feats, list(val_cold_cells))
-                cell_bl.update(imputed)
-            except Exception as e:
-                import warnings
-                warnings.warn(f"Cell bias imputation failed: {e}")
+        if val_cold_cells:
+            from .baselines import train_cell_bias_imputer, impute_cell_biases
+            train_cell_feats = build_cell_features(
+                Path(config["paths"]["output_dir"]), list(train_cells_set),
+            )
+            imputer, _ = train_cell_bias_imputer(train_cell_feats, train_labels)
+            val_cell_feats = build_cell_features(
+                Path(config["paths"]["output_dir"]), list(val_cold_cells),
+            )
+            imputed = impute_cell_biases(imputer, val_cell_feats, list(val_cold_cells))
+            cell_bl.update(imputed)
 
-        # Ensure all val cells have entries
-        for c in val_cells:
+        # Ensure all entries
+        for c in val_cells_set:
             if c not in cell_bl:
                 cell_bl[c] = 0.0
-        for g in np.unique(gene_ids[val_idx]):
+        for g in np.unique(val_gene_arr):
             if g not in gene_bl:
                 gene_bl[g] = 0.0
 
-        X_val_g5 = build_collaborative_features(
+        # Val G5
+        val_g5 = build_collaborative_features(
             pd.DataFrame({
-                "cell_line_id": cell_ids[val_idx],
-                "perturbation_gene": gene_ids[val_idx],
+                "cell_line_id": val_cell_arr,
+                "perturbation_gene": val_gene_arr,
             }),
             gene_bl, cell_bl,
         )
-        for col in X_val_g5.columns:
-            X_val[col] = X_val_g5[col].values
+        for col in val_g5.columns:
+            X_val[col] = val_g5[col].values
 
-        fold_models = train_models(
-            X_train, y_train, cell_ids[train_idx], gene_ids[train_idx],
+        # SVD
+        n_train_genes = train_labels["perturbation_gene"].nunique()
+        n_train_cells = train_labels["cell_line_id"].nunique()
+        svd_k = min(
+            config.get("prediction", {}).get("baselines", {}).get("svd_k", 50),
+            n_train_genes - 1, n_train_cells - 1, 50,
+        )
+        svd_k = max(1, svd_k)
+        U, V, svd_cell_idx, svd_gene_idx, svd_global_mean = compute_label_svd(
+            train_labels, k=svd_k,
+        )
+        svd_dot = {}
+        cell_to_svd = {c: i for i, c in enumerate(svd_cell_idx)}
+        gene_to_svd = {g: i for i, g in enumerate(svd_gene_idx)}
+        for _, row in pd.DataFrame({
+            "cell_line_id": val_cell_arr, "perturbation_gene": val_gene_arr,
+        }).iterrows():
+            c, g = row["cell_line_id"], row["perturbation_gene"]
+            if c in cell_to_svd and g in gene_to_svd:
+                svd_dot[(c, g)] = float(np.dot(U[cell_to_svd[c]], V[gene_to_svd[g]]))
+
+        # Cold genes (genes not in training)
+        val_cold_genes = set(val_gene_arr) - set(train_gene_arr)
+        cf_cold = build_gene_similarity_cf(
+            train_labels, gene_meta, pathway_meta, expression, val_cold_genes, k=20,
+        )
+
+        # Cell features
+        train_cell_feats = build_cell_features(
+            Path(config["paths"]["output_dir"]), list(train_cells_set),
+        )
+        train_lineage = build_lineage_onehot(cell_meta, list(train_cells_set))
+        train_cell_feats = pd.concat([train_cell_feats, train_lineage], axis=1)
+
+        # Train white-box models
+        from .whitebox import train_whitebox_models, predict_whitebox
+        wb_models = train_whitebox_models(
+            X_train, y_train, train_cell_arr, train_gene_arr,
+            expression=expression,
+            gene_static_features=g1,
+            gene_expr_profile_features=g2,
+            cell_features=train_cell_feats,
+            gene_bl=gene_bl,
+            cell_bl=cell_bl,
+            svd_dot=svd_dot,
+            cf_predictions=cf_cold,
+            cold_genes=val_cold_genes,
             config=config,
         )
 
-        preds_val = predict_all(
-            X_val, cell_ids[val_idx], gene_ids[val_idx], fold_models,
+        # Predict
+        preds_val = predict_whitebox(
+            X_val, val_cell_arr, val_gene_arr,
+            gene_bl=gene_bl, cell_bl=cell_bl,
+            svd_dot=svd_dot,
+            cf_predictions=cf_cold,
+            cold_genes=val_cold_genes,
+            models=wb_models,
+            add_jitter=True,
         )
 
         df_val = pd.DataFrame({
-            "cell_line_id": cell_ids[val_idx],
-            "perturbation_gene": gene_ids[val_idx],
+            "cell_line_id": val_cell_arr,
+            "perturbation_gene": val_gene_arr,
             "prediction": preds_val,
             "truth": y_val,
         })
@@ -294,13 +442,15 @@ def validate_group_by_cell(
         all_metrics.append(fold_metrics)
         all_folds.append({
             "fold": fold_idx,
-            "n_train_cells": len(train_cells),
-            "n_val_cells": len(val_cells),
+            "n_train_cells": len(train_cells_set),
+            "n_val_cells": len(val_cells_set),
         })
 
     summary = _aggregate_folds(all_metrics, all_folds, "group_by_cell")
     return summary
 
+
+# ── Aggregation ──────────────────────────────────────────────────────────────
 
 def _aggregate_folds(
     all_metrics: list[dict],

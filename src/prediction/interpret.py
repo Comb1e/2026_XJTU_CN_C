@@ -1,13 +1,12 @@
 """Model interpretability and explainability outputs for Problem 2.
 
-Generates:
-  1. Feature importances (impurity + permutation)
-  2. Sparse surrogate model (ElasticNet)
-  3. Gene baseline decomposition
-  4. Context-specificity analysis (lineage × module)
-  5. Cell-level module dependency profiles
-  6. Case studies
-  7. Validation report
+All outputs are derived from interpretable white-box models:
+  - Feature importance from ElasticNet coefficients, PCA-Ridge back-mapping
+  - Factor Analysis gene loadings per latent factor
+  - Gene baseline decomposition via RidgeCV teacher
+  - Context-specificity analysis (lineage × module)
+  - Cell-level module dependency profiles
+  - Case studies
 """
 
 from __future__ import annotations
@@ -19,22 +18,25 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import ElasticNet
-from sklearn.inspection import permutation_importance
+from sklearn.preprocessing import StandardScaler
 
 from .features import build_all_features
 from .baselines import (
     shrink_gene_means, shrink_cell_means,
-    build_collaborative_features, build_module_priors,
+    build_collaborative_features,
     train_gene_baseline_teacher,
 )
-from .models import predict_all, prepare_features_a
+from .whitebox import (
+    FactorAnalysisModel, SparseElasticNetModel, PCARidgeModel,
+    SplineGAMModel, RidgeBlend,
+)
 
 
 def generate_all_interpretations(
     pred_result: dict[str, Any],
     config: dict[str, Any],
 ) -> dict[str, Any]:
-    """Generate all interpretability outputs.
+    """Generate all interpretability outputs from white-box models.
 
     Args:
         pred_result: output from run_prediction().
@@ -47,7 +49,8 @@ def generate_all_interpretations(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     models = pred_result["models"]
-    model_a = models["model_a"]
+    components = models.get("components", {})
+    blend = models.get("blend")
 
     # Reload data for analysis
     print("  Loading data for interpretation...")
@@ -70,105 +73,144 @@ def generate_all_interpretations(
 
     results = {}
 
-    # 1. Feature importances
-    print("  1. Feature importances...")
-    results["feature_importance"] = _feature_importances(model_a, X, output_dir)
+    # 1. Component blend weights (key interpretability output)
+    print("  1. Component blend weights...")
+    results["blend_weights"] = _blend_weights(blend, output_dir)
 
-    # 2. Sparse surrogate
-    print("  2. Sparse surrogate model...")
-    results["surrogate"] = _sparse_surrogate(model_a, X, labels, output_dir)
+    # 2. ElasticNet feature importance
+    enet_model = components.get("elasticnet", {}).get("model")
+    if enet_model is not None:
+        print("  2. ElasticNet feature importance...")
+        results["elasticnet_importance"] = _elasticnet_importance(enet_model, output_dir)
 
-    # 3. Gene baseline decomposition
-    print("  3. Gene baseline decomposition...")
+    # 3. PCA-Ridge feature importance
+    pca_model = components.get("pca_ridge", {}).get("model")
+    if pca_model is not None:
+        print("  3. PCA-Ridge feature importance...")
+        results["pca_ridge_importance"] = _pca_ridge_importance(pca_model, output_dir)
+
+    # 4. Factor Analysis gene loadings
+    fa_model = components.get("factor_analysis", {}).get("model")
+    if fa_model is not None:
+        print("  4. Factor Analysis gene loadings...")
+        results["fa_loadings"] = _fa_loadings(fa_model, output_dir)
+
+    # 5. Spline-GAM partial dependence
+    spline_model = components.get("spline_gam", {}).get("model")
+    if spline_model is not None:
+        print("  5. Spline-GAM partial dependence...")
+        results["spline_gam"] = _spline_partial_dependence(spline_model, output_dir)
+
+    # 6. Gene baseline decomposition
+    print("  6. Gene baseline decomposition...")
     results["gene_baseline"] = _gene_baseline_decomposition(meta, labels, config, output_dir)
 
-    # 4. Context-specificity analysis
-    print("  4. Context-specificity analysis...")
+    # 7. Context-specificity analysis
+    print("  7. Context-specificity analysis...")
     results["context"] = _context_specificity(pred_result, labels, cell_meta,
                                                meta, output_dir)
 
-    # 5. Cell module dependency profiles
-    print("  5. Cell module dependency profiles...")
+    # 8. Cell module dependency profiles
+    print("  8. Cell module dependency profiles...")
     results["cell_module"] = _cell_module_profiles(pred_result, labels, meta, output_dir)
 
-    # 6. Case studies
-    print("  6. Case studies...")
+    # 9. Case studies
+    print("  9. Case studies...")
     results["case_studies"] = _case_studies(pred_result, labels, meta, output_dir)
 
     return results
 
 
-def _feature_importances(
-    model_a: Any,
-    X: pd.DataFrame,
-    output_dir: Path,
-) -> str:
-    """Compute and save feature importances."""
-    feature_cols = [c for c in X.columns
-                    if c not in ("cell_line_id", "perturbation_gene")
-                    and "neighbor_score" not in c]
-    Xa = X[feature_cols].to_numpy(dtype=np.float32)
+# ── White-box component interpretability ────────────────────────────────────
 
-    # Impurity-based
-    impurity = model_a.feature_importances_
-
-    # Permutation importance (on subset for speed)
-    rng = np.random.RandomState(42)
-    subset_idx = rng.choice(len(Xa), min(50000, len(Xa)), replace=False)
-    perm = permutation_importance(
-        model_a, Xa[subset_idx], model_a.predict(Xa[subset_idx]),
-        n_repeats=5, random_state=42, n_jobs=-1,
-    )
-
-    # Build DataFrame
-    importance_df = pd.DataFrame({
-        "feature": feature_cols,
-        "impurity_importance": impurity,
-        "permutation_importance_mean": perm.importances_mean,
-        "permutation_importance_std": perm.importances_std,
-    })
-    importance_df = importance_df.sort_values("impurity_importance", ascending=False)
-
-    path = output_dir / "feature_importance.csv"
-    importance_df.to_csv(path, index=False)
+def _blend_weights(blend: RidgeBlend | None, output_dir: Path) -> str:
+    """Export RidgeCV blend weights showing component contributions."""
+    if blend is None:
+        return ""
+    weights = blend.get_component_weights()
+    df = pd.DataFrame(weights, columns=["component", "weight"])
+    df["abs_weight"] = np.abs(df["weight"])
+    df = df.sort_values("abs_weight", ascending=False)
+    path = output_dir / "blend_weights.csv"
+    df.to_csv(path, index=False)
+    print(f"    Blend alpha: {blend.alpha_:.4f}")
+    for _, row in df.iterrows():
+        print(f"    {row['component']}: {row['weight']:.4f}")
     return str(path)
 
 
-def _sparse_surrogate(
-    model_a: Any,
-    X: pd.DataFrame,
-    labels: pd.DataFrame,
+def _elasticnet_importance(
+    enet_model: SparseElasticNetModel,
     output_dir: Path,
 ) -> str:
-    """Train a sparse linear surrogate model for interpretability."""
-    feature_cols = [c for c in X.columns
-                    if c not in ("cell_line_id", "perturbation_gene")
-                    and "neighbor_score" not in c]
-    Xa = X[feature_cols].to_numpy(dtype=np.float32)
-
-    # Get model predictions as target
-    y_pred = model_a.predict(Xa)
-
-    # Standardize features for comparability
-    from sklearn.preprocessing import StandardScaler
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(Xa)
-
-    # ElasticNet with cross-validated alpha
-    enet = ElasticNet(alpha=0.01, l1_ratio=0.5, max_iter=5000, random_state=42)
-    enet.fit(X_scaled, y_pred)
-
-    coef_df = pd.DataFrame({
-        "feature": feature_cols,
-        "coefficient": enet.coef_,
-        "abs_coefficient": np.abs(enet.coef_),
-    })
-    coef_df = coef_df.sort_values("abs_coefficient", ascending=False)
-
-    path = output_dir / "surrogate_coefficients.csv"
-    coef_df.to_csv(path, index=False)
+    """Export ElasticNet coefficients — directly interpretable feature weights."""
+    top = enet_model.get_top_features(top_n=50)
+    df = pd.DataFrame(top, columns=["feature", "coefficient"])
+    df["abs_coefficient"] = np.abs(df["coefficient"])
+    print(f"    {enet_model.n_nonzero_} nonzero / {len(enet_model.feature_names_)} features")
+    path = output_dir / "elasticnet_importance.csv"
+    df.to_csv(path, index=False)
     return str(path)
 
+
+def _pca_ridge_importance(
+    pca_model: PCARidgeModel,
+    output_dir: Path,
+) -> str:
+    """Export PCA-Ridge back-mapped feature importance."""
+    top = pca_model.get_top_features(top_n=50)
+    df = pd.DataFrame(top, columns=["feature", "importance"])
+    print(f"    {pca_model.n_components} components, "
+          f"cumulative var={pca_model.explained_variance_ratio_.sum():.3f}")
+    path = output_dir / "pca_ridge_importance.csv"
+    df.to_csv(path, index=False)
+    return str(path)
+
+
+def _fa_loadings(
+    fa_model: FactorAnalysisModel,
+    output_dir: Path,
+) -> str:
+    """Export Factor Analysis gene loadings — per-factor top genes."""
+    if fa_model.gene_loadings_ is None:
+        return ""
+    K = fa_model.gene_loadings_.shape[1]
+    rows = []
+    for k in range(min(K, 10)):  # Top 10 factors
+        top_genes = fa_model.get_top_genes_per_factor(k, top_n=20)
+        for rank, (gene, loading) in enumerate(top_genes):
+            rows.append({
+                "factor": k,
+                "rank": rank + 1,
+                "gene": gene,
+                "loading": loading,
+            })
+    df = pd.DataFrame(rows)
+    path = output_dir / "fa_gene_loadings.csv"
+    df.to_csv(path, index=False)
+    return str(path)
+
+
+def _spline_partial_dependence(
+    spline_model: SplineGAMModel,
+    output_dir: Path,
+) -> str:
+    """Export Spline-GAM partial dependence curves for each selected feature."""
+    rows = []
+    for feat_idx in spline_model.selected_features_:
+        name = (spline_model.feature_names_[feat_idx]
+                if feat_idx < len(spline_model.feature_names_)
+                else f"feat_{feat_idx}")
+        x_grid, y_vals = spline_model.get_partial_dependence(feat_idx, n_points=50)
+        for x, y in zip(x_grid, y_vals):
+            rows.append({"feature": name, "x": float(x), "effect": float(y)})
+    df = pd.DataFrame(rows)
+    path = output_dir / "spline_partial_dependence.csv"
+    df.to_csv(path, index=False)
+    return str(path)
+
+
+# ── Gene baseline decomposition ──────────────────────────────────────────────
 
 def _gene_baseline_decomposition(
     meta: dict,
@@ -193,13 +235,13 @@ def _gene_baseline_decomposition(
 
     teacher, oof_preds, _ = train_gene_baseline_teacher(g1, g2, labels)
 
-    # For each cold gene, show top contributing features
+    # For each cold gene, show predicted baseline
     train_genes = set(labels["perturbation_gene"].unique())
     all_genes = set(gene_feats.index)
     cold_genes = sorted(all_genes - train_genes)
 
     rows = []
-    for gene in cold_genes[:20]:  # Top 20 cold genes
+    for gene in cold_genes[:50]:  # Top 50 cold genes
         if gene not in gene_feats.index:
             continue
         x = gene_feats.loc[gene].to_numpy(dtype=np.float32).reshape(1, -1)
@@ -212,7 +254,6 @@ def _gene_baseline_decomposition(
             "gene": gene,
             "predicted_baseline": pred,
             "n_modules": len(modules),
-            "evidence_weight": meta["evidence_weights"].get(gene, 1.0),
         })
 
     df = pd.DataFrame(rows)
@@ -220,6 +261,8 @@ def _gene_baseline_decomposition(
     df.to_csv(path, index=False)
     return str(path)
 
+
+# ── Context-specificity analysis ────────────────────────────────────────────
 
 def _context_specificity(
     pred_result: dict,
@@ -232,7 +275,6 @@ def _context_specificity(
     submission = pred_result["submission"]
     lineage_map = cell_meta.set_index("cell_line_id")["OncotreeLineage"]
 
-    # Merge lineage info (suffix to avoid label_x/label_y collision)
     df = submission.merge(
         labels[["cell_line_id", "perturbation_gene", "label"]].rename(
             columns={"label": "true_label"}),
@@ -240,7 +282,6 @@ def _context_specificity(
     )
     df["lineage"] = df["cell_line_id"].map(lineage_map)
 
-    # Per-lineage per-module mean prediction (use predicted "label" column)
     gmm = meta.get("gene_module_map", {})
     n_modules = 14
 
@@ -286,9 +327,8 @@ def _cell_module_profiles(
     gmm = meta.get("gene_module_map", {})
     n_modules = 14
 
-    # Compute mean predicted dependency per module per cell
     rows = []
-    for cell in submission["cell_line_id"].unique()[:100]:  # Sample 100 cells
+    for cell in submission["cell_line_id"].unique()[:100]:
         cell_df = submission[submission["cell_line_id"] == cell]
         for mod in range(n_modules):
             mod_genes = {g for g, info in gmm.items()
@@ -317,7 +357,6 @@ def _case_studies(
     """Generate case studies for representative cell lines."""
     submission = pred_result["submission"]
 
-    # Pick 3 example cells
     example_cells = submission["cell_line_id"].unique()[:3]
 
     rows = []
@@ -326,7 +365,6 @@ def _case_studies(
         cell_df = cell_df.sort_values("label", ascending=False)
         top15 = cell_df.head(15)
         for i, (_, row) in enumerate(top15.iterrows()):
-            # Get gene's module memberships
             gene = row["perturbation_gene"]
             modules = meta.get("gene_module_map", {}).get(gene, {}).get("modules", [])
             rows.append({

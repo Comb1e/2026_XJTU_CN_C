@@ -59,7 +59,7 @@ def _build_teacher(train_labels, gene_meta, pathway_meta, expression, config):
 
 
 def _compute_svd(train_labels, val_labels, cold_genes, gene_meta, expression, config):
-    """Compute SVD and impute cold gene factors for additive correction."""
+    """Compute SVD and impute cold gene factors. Returns svd_dot for ALL pairs (train+val)."""
     from src.prediction.baselines import compute_label_svd, impute_gene_factors
     from src.prediction.features import (
         build_gene_static_features, build_gene_expression_profile_features,
@@ -86,16 +86,21 @@ def _compute_svd(train_labels, val_labels, cold_genes, gene_meta, expression, co
     gene_to_col = {g: i for i, g in enumerate(gene_idx_ext)}
     cell_to_row = {c: i for i, c in enumerate(svd_cell_idx)}
 
-    svd_dot = {}
-    for _, row in val_labels.iterrows():
-        c, g = row["cell_line_id"], row["perturbation_gene"]
-        if c in cell_to_row and g in gene_to_col:
-            svd_dot[(c, g)] = float(np.dot(
-                U[cell_to_row[c]], V_ext[gene_to_col[g]]
-            ))
-        else:
-            svd_dot[(c, g)] = 0.0
+    def _compute_dots(pairs_df):
+        svd_dot = {}
+        for _, row in pairs_df.iterrows():
+            c, g = row["cell_line_id"], row["perturbation_gene"]
+            if c in cell_to_row and g in gene_to_col:
+                svd_dot[(c, g)] = float(np.dot(
+                    U[cell_to_row[c]], V_ext[gene_to_col[g]]
+                ))
+            else:
+                svd_dot[(c, g)] = 0.0
+        return svd_dot
 
+    # Include BOTH training and validation pairs for consistent SVD signal
+    svd_dot = _compute_dots(train_labels)
+    svd_dot.update(_compute_dots(val_labels))
     return svd_dot
 
 
@@ -158,8 +163,6 @@ def run_cold(labels, config, data_dir, output_dir, args):
         compute_loco_gene_means, shrink_cell_means,
         predict_gene_baselines, predict_additive,
     )
-    from src.prediction.models import train_models, predict_all
-
     # Split by gene
     unique_genes = labels["perturbation_gene"].unique()
     rng = np.random.RandomState(args.random_state)
@@ -266,13 +269,15 @@ def run_cold(labels, config, data_dir, output_dir, args):
         add_jitter=True,
     )
     # Baseline: additive only
+    svd_w = config.get("prediction", {}).get("whitebox", {}).get("svd_weight", 0.5)
+    cf_w = config.get("prediction", {}).get("whitebox", {}).get("cf_weight", 0.6)
     add_preds = _predict_additive(
         val_labels[["cell_line_id", "perturbation_gene"]], gene_bl, cell_bl,
     )
     add_svd_preds = _predict_additive(
         val_labels[["cell_line_id", "perturbation_gene"]], gene_bl, cell_bl,
-        svd_dot_products=svd_dot, svd_weight=0.3,
-        cf_predictions=cf_cold, cf_weight=0.6,
+        svd_dot_products=svd_dot, svd_weight=svd_w,
+        cf_predictions=cf_cold, cf_weight=cf_w,
     )
 
     # Score
@@ -305,7 +310,6 @@ def run_warm(labels, config, data_dir, output_dir, args):
         compute_loco_gene_means, shrink_cell_means,
         predict_gene_baselines, predict_additive,
     )
-    from src.prediction.models import train_models, predict_all
 
     rng = np.random.RandomState(args.random_state)
 
@@ -418,13 +422,15 @@ def run_warm(labels, config, data_dir, output_dir, args):
         add_jitter=True,
     )
     # Baseline: additive only
+    svd_w = config.get("prediction", {}).get("whitebox", {}).get("svd_weight", 0.5)
+    cf_w = config.get("prediction", {}).get("whitebox", {}).get("cf_weight", 0.6)
     add_preds = _predict_additive(
         val_labels[["cell_line_id", "perturbation_gene"]], gene_bl, cell_bl,
     )
     add_svd_preds = _predict_additive(
         val_labels[["cell_line_id", "perturbation_gene"]], gene_bl, cell_bl,
-        svd_dot_products=svd_dot, svd_weight=0.3,
-        cf_predictions=cf_cold, cf_weight=0.6,
+        svd_dot_products=svd_dot, svd_weight=svd_w,
+        cf_predictions=cf_cold, cf_weight=cf_w,
     )
 
     # Score per regime
@@ -440,16 +446,16 @@ def run_warm(labels, config, data_dir, output_dir, args):
 
     if warm_mask.any():
         print("\n--- Warm-pair regime ---")
-        _score(pd.DataFrame({"label": add_svd_preds[warm_mask.values]}),
-               val_labels[warm_mask.values].reset_index(drop=True), data_dir, "additive+SVD-WARM")
+        _score(pd.DataFrame({"label": wb_preds[warm_mask.values]}),
+               val_labels[warm_mask.values].reset_index(drop=True), data_dir, "WB-WARM")
     if cold_mask.any():
         print("\n--- Cold-pair regime ---")
-        _score(pd.DataFrame({"label": add_svd_preds[cold_mask.values]}),
-               val_labels[cold_mask.values].reset_index(drop=True), data_dir, "additive+SVD-COLD")
+        _score(pd.DataFrame({"label": wb_preds[cold_mask.values]}),
+               val_labels[cold_mask.values].reset_index(drop=True), data_dir, "WB-COLD")
 
-    # Save
+    # Save — use white-box predictions for official scoring
     submission_df = val_labels[["cell_line_id", "perturbation_gene"]].copy()
-    submission_df["label"] = add_svd_preds
+    submission_df["label"] = wb_preds
     submission_df.to_csv(output_dir / "val_submission.csv", index=False)
     val_labels[["cell_line_id", "perturbation_gene", "label"]].to_csv(
         output_dir / "val_answer.csv", index=False,
@@ -470,7 +476,6 @@ def run_real(labels, config, data_dir, output_dir, args):
         compute_loco_gene_means, shrink_cell_means,
         predict_gene_baselines, predict_additive,
     )
-    from src.prediction.models import train_models, predict_all
 
     rng = np.random.RandomState(args.random_state)
     unique_genes = labels["perturbation_gene"].unique()
@@ -603,13 +608,15 @@ def run_real(labels, config, data_dir, output_dir, args):
         add_jitter=True,
     )
     # Baseline: additive only
+    svd_w = config.get("prediction", {}).get("whitebox", {}).get("svd_weight", 0.5)
+    cf_w = config.get("prediction", {}).get("whitebox", {}).get("cf_weight", 0.6)
     add_preds = _predict_additive(
         val_labels[["cell_line_id", "perturbation_gene"]], gene_bl, cell_bl,
     )
     add_svd_preds = _predict_additive(
         val_labels[["cell_line_id", "perturbation_gene"]], gene_bl, cell_bl,
-        svd_dot_products=svd_dot, svd_weight=0.3,
-        cf_predictions=cf_cold, cf_weight=0.6,
+        svd_dot_products=svd_dot, svd_weight=svd_w,
+        cf_predictions=cf_cold, cf_weight=cf_w,
     )
 
     # Score — overall and per-regime
