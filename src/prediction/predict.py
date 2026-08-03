@@ -163,15 +163,42 @@ def run_prediction(config: dict[str, Any]) -> dict[str, Any]:
         else:
             X_train[col] = g5_train[col].values
 
-    # ── Train models ──
-    print("\nTraining models...")
+    # ── Train white-box models ──
+    print("\nTraining white-box models...")
     y_train = labels["label"].to_numpy(dtype=np.float64)
     train_cells = labels["cell_line_id"].to_numpy()
     train_genes_arr = labels["perturbation_gene"].to_numpy()
 
-    models = train_models(
+    # Build cell features for white-box training
+    from .features import build_cell_features as _build_cell_features
+    train_cell_feats_df = _build_cell_features(
+        Path(config["paths"]["output_dir"]),
+        list(labels["cell_line_id"].unique()),
+    )
+    from .features import build_lineage_onehot as _build_lineage_onehot
+    cell_meta = pd.read_csv(data_dir / "metadata" / "cell_line_metadata.csv")
+    lineage_onehot = _build_lineage_onehot(cell_meta, list(labels["cell_line_id"].unique()))
+    train_cell_feats_df = pd.concat([train_cell_feats_df, lineage_onehot], axis=1)
+
+    # CF predictions for training cold genes
+    from .baselines import build_gene_similarity_cf as _build_gene_similarity_cf
+    cf_cold_train = _build_gene_similarity_cf(
+        labels, gene_meta, pathway_meta, expression, cold_genes, k=20,
+    )
+
+    from .whitebox import train_whitebox_models
+    models = train_whitebox_models(
         X_train, y_train, train_cells, train_genes_arr,
-        cold_genes=cold_genes, config=config,
+        expression=expression,
+        gene_static_features=g1,
+        gene_expr_profile_features=g2,
+        cell_features=train_cell_feats_df,
+        gene_bl=gene_bl,
+        cell_bl=cell_bl,
+        svd_dot=svd_dot,
+        cf_predictions=cf_cold_train,
+        cold_genes=cold_genes,
+        config=config,
     )
 
     # ── Build features for test pairs ──
@@ -247,23 +274,36 @@ def run_prediction(config: dict[str, Any]) -> dict[str, Any]:
     )
     print(f"  CF predictions for {len(cf_cold):,} (cell, gene) pairs")
 
-    # ── Predict (additive + CF + SVD) ──
-    print("\nGenerating predictions (additive + CF + SVD)...")
-    from .baselines import predict_additive
-    test_preds = predict_additive(
-        submission[["cell_line_id", "perturbation_gene"]],
-        gene_bl, cell_bl,
-        svd_dot_products=svd_dot_test,
-        svd_weight=0.3,
+    # ── Predict (white-box blend) ──
+    print("\nGenerating predictions (white-box blend)...")
+    from .whitebox import predict_whitebox
+
+    # Build cell features for test cells
+    test_cell_feats_df = _build_cell_features(
+        Path(config["paths"]["output_dir"]),
+        list(submission["cell_line_id"].unique()),
+    )
+    test_lineage_onehot = _build_lineage_onehot(cell_meta, list(submission["cell_line_id"].unique()))
+    test_cell_feats_df = pd.concat([test_cell_feats_df, test_lineage_onehot], axis=1)
+
+    test_preds = predict_whitebox(
+        X_test,
+        submission["cell_line_id"].to_numpy(),
+        submission["perturbation_gene"].to_numpy(),
+        gene_bl=gene_bl,
+        cell_bl=cell_bl,
+        svd_dot=svd_dot_test,
         cf_predictions=cf_cold,
-        cf_weight=0.6,
+        cold_genes=cold_genes,
+        models=models,
+        add_jitter=True,
     )
 
     # ── Build submission ──
     submission_df = submission.copy()
     submission_df["label"] = test_preds
 
-    print(f"\n  Additive predictions: mean={test_preds.mean():.4f}, "
+    print(f"\n  White-box predictions: mean={test_preds.mean():.4f}, "
           f"std={test_preds.std():.4f}, "
           f"range=[{test_preds.min():.4f}, {test_preds.max():.4f}]")
 
@@ -274,13 +314,19 @@ def run_prediction(config: dict[str, Any]) -> dict[str, Any]:
     submission_df.to_csv(submission_path, index=False)
     print(f"\n  Submission saved to: {submission_path}")
 
-    # ── Training set metrics (additive model) ──
-    print("\nComputing training metrics (additive model)...")
-    train_preds = predict_additive(
-        labels[["cell_line_id", "perturbation_gene"]],
-        gene_bl, cell_bl,
-        svd_dot_products=svd_dot,
-        svd_weight=0.3,
+    # ── Training set metrics (white-box model) ──
+    print("\nComputing training metrics (white-box model)...")
+    train_preds = predict_whitebox(
+        X_train,
+        train_cells,
+        train_genes_arr,
+        gene_bl=gene_bl,
+        cell_bl=cell_bl,
+        svd_dot=svd_dot,
+        cf_predictions=cf_cold_train,
+        cold_genes=cold_genes,
+        models=models,
+        add_jitter=False,
     )
     train_metrics_df = pd.DataFrame({
         "cell_line_id": train_cells,
@@ -300,9 +346,8 @@ def run_prediction(config: dict[str, Any]) -> dict[str, Any]:
         "train_metrics": {k: float(v) if isinstance(v, (np.floating, float)) else v
                           for k, v in train_metrics.items()},
         "model_params": {
-            "blend_alpha_a": models["blend_alpha_a"],
-            "blend_alpha_b": models["blend_alpha_b"],
-            "blend_alpha_c": models["blend_alpha_c"],
+            "component_weights": models.get("blend", {}).get_component_weights() if hasattr(models.get("blend", {}), "get_component_weights") else [],
+            "blend_alpha": models.get("blend", {}).alpha_ if hasattr(models.get("blend", {}), "alpha_") else 0.0,
         },
     }
     report_path = pred_output_dir / "prediction_report.json"

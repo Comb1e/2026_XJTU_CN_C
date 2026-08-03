@@ -137,7 +137,7 @@ prediction:
   # Baselines
   baselines:
     prior_weight: 10.0             # Empirical Bayes shrinkage strength
-    svd_k: 20                      # Latent dimensions for SVD factorization
+    svd_k: 50                      # Latent dimensions for SVD factorization
     knn_k: 20                      # Neighbors for collaborative filtering
     gene_teacher_n_folds: 5        # CV folds for gene baseline teacher
 
@@ -148,3 +148,30 @@ prediction:
 
   # Output
   output_dir: "outputs/prediction"
+
+  # ── White-box model configuration ────────────────────────────────────────
+  whitebox:
+    svd_weight: 0.3
+    cf_weight: 0.6
+
+    factor_analysis:
+      n_components: 40
+      max_iter: 2000
+
+    elasticnet:
+      l1_ratio: 0.5
+      n_alphas: 100
+      max_iter: 5000
+
+    pca_ridge:
+      n_components: 80
+      ridge_alpha: 1.0
+
+    pls:
+      n_components: 30
+
+    spline_gam:
+      max_features: 15
+      smooth: 0.3
+
+    blend_alphas: [0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]
