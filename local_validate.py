@@ -173,16 +173,15 @@ def run_cold(labels, config, data_dir, output_dir, args):
     g2 = build_gene_expression_profile_features(expression)
 
     from src.prediction.formula import train_formula_models, predict_formula
-    fm_models = train_formula_models(
-        X_train, y_train,
+    fm_models = train_formula_models(y_train,
         train_labels["cell_line_id"].to_numpy(),
         train_labels["perturbation_gene"].to_numpy(),
-        expression=expression,
+        
         gene_static_features=g1,
         gene_expr_profile_features=g2,
         cell_features=train_cell_feats,
-        gene_bl=gene_bl,
-        cell_bl=cell_bl,
+        
+        
         cold_genes=cold_genes,
         config=config,
     )
@@ -196,12 +195,10 @@ def run_cold(labels, config, data_dir, output_dir, args):
     # Predict
     print("\nPredicting...")
     from src.prediction.formula import predict_formula as _predict_formula
-    fm_preds = _predict_formula(
-        X_val,
-        val_labels["cell_line_id"].to_numpy(),
+    fm_preds = _predict_formula(val_labels["cell_line_id"].to_numpy(),
         val_labels["perturbation_gene"].to_numpy(),
-        gene_bl=gene_bl,
-        cell_bl=cell_bl,
+        
+        
         cold_genes=cold_genes,
         models=fm_models,
         add_jitter=True,
@@ -298,15 +295,15 @@ def run_warm(labels, config, data_dir, output_dir, args):
 
     from src.prediction.formula import train_formula_models as _train_fm
     fm_models = _train_fm(
-        X_train, y_train,
+        y_train,
         train_labels["cell_line_id"].to_numpy(),
         train_labels["perturbation_gene"].to_numpy(),
-        expression=expression,
+        
         gene_static_features=g1,
         gene_expr_profile_features=g2,
         cell_features=train_cell_feats,
-        gene_bl=gene_bl,
-        cell_bl=cell_bl,
+        
+        
         cold_genes=cold_genes,
         config=config,
     )
@@ -320,12 +317,10 @@ def run_warm(labels, config, data_dir, output_dir, args):
     # Predict
     print("\nPredicting...")
     from src.prediction.formula import predict_formula as _predict_formula
-    fm_preds = _predict_formula(
-        X_val,
-        val_labels["cell_line_id"].to_numpy(),
+    fm_preds = _predict_formula(val_labels["cell_line_id"].to_numpy(),
         val_labels["perturbation_gene"].to_numpy(),
-        gene_bl=gene_bl,
-        cell_bl=cell_bl,
+        
+        
         cold_genes=cold_genes,
         models=fm_models,
         add_jitter=True,
@@ -455,15 +450,15 @@ def run_real(labels, config, data_dir, output_dir, args):
 
     from src.prediction.formula import train_formula_models as _train_fm
     fm_models = _train_fm(
-        X_train, y_train,
+        y_train,
         train_labels["cell_line_id"].to_numpy(),
         train_labels["perturbation_gene"].to_numpy(),
-        expression=expression,
+        
         gene_static_features=g1,
         gene_expr_profile_features=g2,
         cell_features=train_cell_feats,
-        gene_bl=gene_bl,
-        cell_bl=cell_bl,
+        
+        
         cold_genes=val_cold_genes,
         config=config,
     )
@@ -477,12 +472,10 @@ def run_real(labels, config, data_dir, output_dir, args):
     # Predict
     print("\nPredicting...")
     from src.prediction.formula import predict_formula as _predict_formula
-    fm_preds = _predict_formula(
-        X_val,
-        val_labels["cell_line_id"].to_numpy(),
+    fm_preds = _predict_formula(val_labels["cell_line_id"].to_numpy(),
         val_labels["perturbation_gene"].to_numpy(),
-        gene_bl=gene_bl,
-        cell_bl=cell_bl,
+        
+        
         cold_genes=cold_genes,
         models=fm_models,
         add_jitter=True,

@@ -106,25 +106,23 @@ class TestIntegration:
         print(f"  Features: {X.shape[1]}, cold genes: {len(cold)}")
 
         # Train formula-based models
-        models = train_formula_models(
-            X, y, cell_ids, gene_ids,
-            expression=expression,
+        models = train_formula_models(y, cell_ids, gene_ids,
+            
             gene_static_features=g1,
             gene_expr_profile_features=g2,
             cell_features=cell_feats,
-            gene_bl=gene_bl, cell_bl=cell_bl,
-            svd_dot=svd_dot,
-            cf_predictions=cf_cold,
+             
+            
+            
             cold_genes=cold,
             config=config,
         )
 
         # Predict
-        preds = predict_formula(
-            X, cell_ids, gene_ids,
-            gene_bl=gene_bl, cell_bl=cell_bl,
-            svd_dot=svd_dot,
-            cf_predictions=cf_cold,
+        preds = predict_formula(cell_ids, gene_ids,
+             
+            
+            
             cold_genes=cold,
             models=models,
             add_jitter=True,

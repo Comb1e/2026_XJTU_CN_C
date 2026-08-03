@@ -186,16 +186,15 @@ def run_prediction(config: dict[str, Any]) -> dict[str, Any]:
     )
 
     from .formula import train_formula_models
-    models = train_formula_models(
-        X_train, y_train, train_cells, train_genes_arr,
-        expression=expression,
+    models = train_formula_models(y_train, train_cells, train_genes_arr,
+        
         gene_static_features=g1,
         gene_expr_profile_features=g2,
         cell_features=train_cell_feats_df,
-        gene_bl=gene_bl,
-        cell_bl=cell_bl,
-        svd_dot=svd_dot,
-        cf_predictions=cf_cold_train,
+        
+        
+        
+        
         cold_genes=cold_genes,
         config=config,
     )
@@ -285,14 +284,12 @@ def run_prediction(config: dict[str, Any]) -> dict[str, Any]:
     test_lineage_onehot = _build_lineage_onehot(cell_meta, list(submission["cell_line_id"].unique()))
     test_cell_feats_df = pd.concat([test_cell_feats_df, test_lineage_onehot], axis=1)
 
-    test_preds = predict_formula(
-        X_test,
-        submission["cell_line_id"].to_numpy(),
+    test_preds = predict_formula(submission["cell_line_id"].to_numpy(),
         submission["perturbation_gene"].to_numpy(),
-        gene_bl=gene_bl,
-        cell_bl=cell_bl,
+        
+        
         svd_dot=svd_dot_test,
-        cf_predictions=cf_cold,
+        
         cold_genes=cold_genes,
         models=models,
         add_jitter=True,
@@ -315,14 +312,12 @@ def run_prediction(config: dict[str, Any]) -> dict[str, Any]:
 
     # ── Training set metrics (formula-based model) ──
     print("\nComputing training metrics (formula-based model)...")
-    train_preds = predict_formula(
-        X_train,
-        train_cells,
+    train_preds = predict_formula(train_cells,
         train_genes_arr,
-        gene_bl=gene_bl,
-        cell_bl=cell_bl,
-        svd_dot=svd_dot,
-        cf_predictions=cf_cold_train,
+        
+        
+        
+        
         cold_genes=cold_genes,
         models=models,
         add_jitter=False,

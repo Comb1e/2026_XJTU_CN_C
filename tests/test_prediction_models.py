@@ -3,11 +3,7 @@
 Tests cover:
   - GeneEssentialityFormula: fit, predict, feature importance
   - CellVulnerabilityFormula: fit, predict, feature importance
-  - ModuleInteractionFormula: fit, predict, named coefficients
-  - ExpressionEffectFormula: fit, predict, asymmetric effect
-  - ModuleMatchFormula: fit, predict
-  - EvidenceWeightedFormula: fit, predict, single coefficient
-  - InteractionBlend: optimal component weighting
+  - SVDInteraction: SVD bilinear interaction, cold gene prediction, JS shrinkage
   - Pairwise ranking (LogisticRegression Bradley-Terry)
   - Calibration utilities (Ridge, quantile)
 """
@@ -25,11 +21,7 @@ import pytest
 from src.prediction.formula import (
     GeneEssentialityFormula,
     CellVulnerabilityFormula,
-    ModuleInteractionFormula,
-    ExpressionEffectFormula,
-    ModuleMatchFormula,
-    EvidenceWeightedFormula,
-    InteractionBlend,
+    IMCInteraction,
 )
 from src.prediction.models import (
     sample_pairwise_pairs,
@@ -152,242 +144,110 @@ class TestCellVulnerabilityFormula:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Module×Indicator Interaction Formula
+# ═══════════════════════════════════════════════════════════════════════════════
+# IMC Bilinear Interaction (Inductive Matrix Completion)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-class TestModuleInteractionFormula:
+class TestIMCInteraction:
+    """Tests for IMCInteraction with small synthetic data (fast)."""
+
     def test_fit_and_predict(self):
+        """IMC should capture bilinear structure from cell×gene features."""
         rng = np.random.RandomState(42)
-        n = 200
-        n_modules = 14
-        module_membership = np.zeros((n, n_modules), dtype=np.float32)
-        for i in range(n):
-            module_membership[i, i % n_modules] = 1.0
-        cell_indicators = rng.randn(n, n_modules).astype(np.float32)
-        # Generate labels with known module interaction
-        true_coef = np.array([0.5 if m == 0 else -0.2 if m == 3 else 0.1 if m == 6 else 0.0
-                             for m in range(n_modules)])
-        residuals = (module_membership * cell_indicators) @ true_coef + 0.1 * rng.randn(n)
+        n = 200  # small: fast
+        f_c, f_g, r = 10, 8, 3
 
-        formula = ModuleInteractionFormula(alpha=1.0, n_modules=n_modules)
-        formula.fit(
-            np.array([f"C{i}" for i in range(n)]),
-            np.array([f"G{i}" for i in range(n)]),
-            residuals,
-            module_membership,
-            cell_indicators,
-        )
+        Xc = rng.randn(n, f_c).astype(np.float64)
+        Xg = rng.randn(n, f_g).astype(np.float64)
+        W_true = rng.randn(f_c, r) * 0.5
+        H_true = rng.randn(f_g, r) * 0.5
+        y = np.sum((Xc @ W_true) * (Xg @ H_true), axis=1) + 0.05 * rng.randn(n)
 
-        preds = formula.predict(module_membership, cell_indicators)
-        assert len(preds) == n
-        assert preds.dtype == np.float32
+        imc = IMCInteraction(rank=r, lambda_w=0.01, lambda_h=0.01, max_iter=20)
+        imc.fit(Xc, Xg, y, verbose=False)
 
-    def test_named_coefficients(self):
+        pred = imc.predict(Xc, Xg)
+        assert len(pred) == n
+        assert pred.dtype == np.float32
+        r2 = 1.0 - np.sum((y - pred) ** 2) / max(np.sum((y - np.mean(y)) ** 2), 1e-12)
+        # Should capture substantial variance with correct rank
+        assert r2 > 0.3, f"IMC R²={r2:.4f} too low"
+
+    def test_cold_gene_prediction(self):
+        """Cold (unseen) genes with features should get non-zero predictions."""
         rng = np.random.RandomState(42)
-        n = 100
-        n_modules = 14
-        module_membership = np.zeros((n, n_modules), dtype=np.float32)
-        for i in range(n):
-            module_membership[i, i % n_modules] = 1.0
-        cell_indicators = rng.randn(n, n_modules).astype(np.float32)
-        residuals = rng.randn(n)
+        n_train, n_test = 150, 50
+        f_c, f_g, r = 8, 6, 2
 
-        formula = ModuleInteractionFormula(alpha=1.0, n_modules=n_modules)
-        formula.fit(
-            np.array([f"C{i}" for i in range(n)]),
-            np.array([f"G{i}" for i in range(n)]),
-            residuals,
-            module_membership,
-            cell_indicators,
-        )
+        Xc_train = rng.randn(n_train, f_c).astype(np.float64)
+        Xg_train = rng.randn(n_train, f_g).astype(np.float64)
+        W_true = rng.randn(f_c, r) * 0.3
+        H_true = rng.randn(f_g, r) * 0.3
+        y_train = np.sum((Xc_train @ W_true) * (Xg_train @ H_true), axis=1)
 
-        coefs = formula.get_coefficients()
-        assert len(coefs) == n_modules
-        assert all(isinstance(name, str) for name, _ in coefs)
-        # Check that all 14 module names are present
-        for name in ModuleInteractionFormula.MODULE_NAMES:
-            assert any(c[0] == name for c in coefs)
+        imc = IMCInteraction(rank=r, lambda_w=0.1, lambda_h=0.1, max_iter=20)
+        imc.fit(Xc_train, Xg_train, y_train, verbose=False)
+
+        # Predict for new genes (cold start — different Xg)
+        Xc_test = rng.randn(n_test, f_c).astype(np.float64)
+        Xg_test = rng.randn(n_test, f_g).astype(np.float64)
+        pred = imc.predict(Xc_test, Xg_test)
+
+        assert len(pred) == n_test
+        assert not np.allclose(pred, 0), "Cold gene predictions should be non-zero"
 
     def test_formula_str(self):
+        """Formula string output."""
         rng = np.random.RandomState(42)
-        n = 50
-        n_modules = 14
-        module_membership = np.zeros((n, n_modules), dtype=np.float32)
-        for i in range(n):
-            module_membership[i, i % n_modules] = 1.0
-        cell_indicators = rng.randn(n, n_modules).astype(np.float32)
-        residuals = rng.randn(n)
+        n, f_c, f_g, r = 100, 6, 4, 2
+        Xc = rng.randn(n, f_c).astype(np.float64)
+        Xg = rng.randn(n, f_g).astype(np.float64)
+        y = rng.randn(n)
 
-        formula = ModuleInteractionFormula(alpha=1.0, n_modules=n_modules)
-        formula.fit(
-            np.array([f"C{i}" for i in range(n)]),
-            np.array([f"G{i}" for i in range(n)]),
-            residuals, module_membership, cell_indicators,
-        )
-        s = formula.formula_str()
-        assert "I_mod" in s
+        imc = IMCInteraction(rank=r, max_iter=10)
+        imc.fit(Xc, Xg, y,
+                cell_feature_names=[f"cfeat_{i}" for i in range(f_c)],
+                gene_feature_names=[f"gfeat_{i}" for i in range(f_g)],
+                verbose=False)
 
+        s = imc.formula_str()
+        assert "W H^T" in s
+        assert "rank" in s
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# Expression Effect Formula
-# ═══════════════════════════════════════════════════════════════════════════════
-
-class TestExpressionEffectFormula:
-    def test_fit_and_predict(self):
+    def test_get_top_interactions(self):
+        """Top interactions should return named feature pairs."""
         rng = np.random.RandomState(42)
-        n = 300
-        z_cg = rng.randn(n).astype(np.float32)
-        # Nonlinear asymmetric effect
-        residuals = -0.5 * z_cg + 0.3 * np.abs(z_cg) - 0.2 * np.maximum(0, z_cg) + 0.1 * rng.randn(n)
+        n, f_c, f_g, r = 120, 8, 5, 2
+        Xc = rng.randn(n, f_c).astype(np.float64)
+        Xg = rng.randn(n, f_g).astype(np.float64)
+        y = rng.randn(n)
 
-        formula = ExpressionEffectFormula(alpha=1.0)
-        formula.fit(z_cg, residuals)
+        imc = IMCInteraction(rank=r, max_iter=10)
+        imc.fit(Xc, Xg, y,
+                cell_feature_names=[f"cell_{i}" for i in range(f_c)],
+                gene_feature_names=[f"gene_{i}" for i in range(f_g)],
+                verbose=False)
 
-        preds = formula.predict(z_cg)
-        assert len(preds) == n
-        assert preds.dtype == np.float32
-        assert not np.isnan(preds).any()
+        top = imc.get_top_interactions(top_n=5)
+        assert len(top) == 5
+        assert len(top[0]) == 3  # (cell_feat, gene_feat, weight)
+        assert isinstance(top[0][2], float)
 
-    def test_coefficients_shape(self):
+    def test_convergence(self):
+        """ALS should converge within max_iter."""
         rng = np.random.RandomState(42)
-        n = 200
-        z_cg = rng.randn(n).astype(np.float32)
-        residuals = rng.randn(n)
+        n, f_c, f_g, r = 200, 10, 8, 3
+        Xc = rng.randn(n, f_c).astype(np.float64)
+        Xg = rng.randn(n, f_g).astype(np.float64)
+        W_true = rng.randn(f_c, r) * 0.5
+        H_true = rng.randn(f_g, r) * 0.5
+        y = np.sum((Xc @ W_true) * (Xg @ H_true), axis=1) + 0.1 * rng.randn(n)
 
-        formula = ExpressionEffectFormula(alpha=1.0)
-        formula.fit(z_cg, residuals)
-        assert formula.coefficients_ is not None
-        assert len(formula.coefficients_) == 4  # θ₁, θ₂, θ₃, θ₄
-
-    def test_formula_str(self):
-        rng = np.random.RandomState(42)
-        n = 100
-        z_cg = rng.randn(n).astype(np.float32)
-        residuals = rng.randn(n)
-
-        formula = ExpressionEffectFormula(alpha=1.0)
-        formula.fit(z_cg, residuals)
-        s = formula.formula_str()
-        assert "I_expr" in s
-        assert "|z|" in s
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Module Match Formula
-# ═══════════════════════════════════════════════════════════════════════════════
-
-class TestModuleMatchFormula:
-    def test_fit_and_predict(self):
-        rng = np.random.RandomState(42)
-        n = 200
-        n_modules = 14
-        module_membership = np.zeros((n, n_modules), dtype=np.float32)
-        for i in range(n):
-            module_membership[i, i % n_modules] = 1.0
-        expr_percentile = rng.rand(n).astype(np.float32)
-        residuals = rng.randn(n)
-
-        formula = ModuleMatchFormula(alpha=1.0, n_modules=n_modules)
-        formula.fit(module_membership, expr_percentile, residuals)
-
-        preds = formula.predict(module_membership, expr_percentile)
-        assert len(preds) == n
-        assert preds.dtype == np.float32
-
-    def test_formula_str(self):
-        rng = np.random.RandomState(42)
-        n = 50
-        n_modules = 14
-        module_membership = np.zeros((n, n_modules), dtype=np.float32)
-        for i in range(n):
-            module_membership[i, i % n_modules] = 1.0
-        expr_percentile = rng.rand(n).astype(np.float32)
-        residuals = rng.randn(n)
-
-        formula = ModuleMatchFormula(alpha=1.0, n_modules=n_modules)
-        formula.fit(module_membership, expr_percentile, residuals)
-        s = formula.formula_str()
-        assert "I_match" in s
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Evidence-Weighted Expression Formula
-# ═══════════════════════════════════════════════════════════════════════════════
-
-class TestEvidenceWeightedFormula:
-    def test_fit_and_predict(self):
-        rng = np.random.RandomState(42)
-        n = 300
-        evidence = rng.rand(n).astype(np.float32) * 0.5 + 0.5
-        z_cg = rng.randn(n).astype(np.float32)
-        true_omega = 0.7
-        residuals = true_omega * evidence * z_cg + 0.1 * rng.randn(n)
-
-        formula = EvidenceWeightedFormula()
-        formula.fit(evidence, z_cg, residuals)
-
-        preds = formula.predict(evidence, z_cg)
-        assert len(preds) == n
-        assert preds.dtype == np.float32
-        # Should recover approximate omega
-        assert abs(formula.omega_ - true_omega) < 0.5
-
-    def test_single_coefficient(self):
-        rng = np.random.RandomState(42)
-        n = 200
-        evidence = rng.rand(n).astype(np.float32)
-        z_cg = rng.randn(n).astype(np.float32)
-        residuals = rng.randn(n)
-
-        formula = EvidenceWeightedFormula()
-        formula.fit(evidence, z_cg, residuals)
-        assert isinstance(formula.omega_, float)
-
-    def test_formula_str(self):
-        rng = np.random.RandomState(42)
-        n = 100
-        evidence = rng.rand(n).astype(np.float32)
-        z_cg = rng.randn(n).astype(np.float32)
-        residuals = rng.randn(n)
-
-        formula = EvidenceWeightedFormula()
-        formula.fit(evidence, z_cg, residuals)
-        s = formula.formula_str()
-        assert "I_ew" in s
-        assert "EvidenceWeight" in s
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Interaction Blend
-# ═══════════════════════════════════════════════════════════════════════════════
-
-class TestInteractionBlend:
-    def test_fit_and_predict(self):
-        rng = np.random.RandomState(42)
-        n = 200
-        comp1 = rng.randn(n).astype(np.float32)
-        comp2 = rng.randn(n).astype(np.float32)
-        y = 2.0 * comp1 + 0.0 * comp2 + 0.1 * rng.randn(n)
-
-        blend = InteractionBlend(alphas=[0.1, 1.0, 10.0])
-        blend.fit([comp1, comp2], y, component_names=["good", "noisy"])
-
-        preds = blend.predict([comp1, comp2])
-        assert len(preds) == n
-
-        weights = dict(blend.get_weights())
-        assert abs(weights["good"]) > abs(weights["noisy"])
-
-    def test_weights_summary(self):
-        rng = np.random.RandomState(42)
-        n = 100
-        comps = [rng.randn(n).astype(np.float32) for _ in range(3)]
-        y = comps[0] + 0.5 * comps[1] + 0.1 * rng.randn(n)
-
-        blend = InteractionBlend()
-        blend.fit(comps, y, component_names=["a", "b", "c"])
-        weights = blend.get_weights()
-        assert len(weights) == 3
+        imc = IMCInteraction(rank=r, max_iter=30, tol=1e-4)
+        imc.fit(Xc, Xg, y, verbose=False)
+        # Should converge before max_iter
+        assert imc.iterations_ <= 30
+        assert imc.train_r2_ > 0
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

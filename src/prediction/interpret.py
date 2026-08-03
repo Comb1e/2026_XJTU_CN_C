@@ -1,10 +1,9 @@
 """Model interpretability and explainability outputs for Problem 2.
 
 All outputs are derived from interpretable formula-based models:
-  - Gene essentiality formula coefficients
+  - Gene essentiality formula coefficients (empirical Bayes shrinkage)
   - Cell vulnerability formula coefficients
-  - Module×Indicator interaction coefficients
-  - Expression→Dependency effect curve
+  - IMC bilinear interaction feature×feature weights
   - Human-readable formula printout
   - Gene baseline decomposition via teacher model
   - Context-specificity analysis (lineage × module)
@@ -30,9 +29,7 @@ from .baselines import (
 from .formula import (
     GeneEssentialityFormula, CellVulnerabilityFormula,
     ShrinkageGeneFormula, ShrinkageCellFormula,
-    ModuleInteractionFormula, ExpressionEffectFormula,
-    ModuleMatchFormula, EvidenceWeightedFormula,
-    InteractionBlend,
+    IMCInteraction,
 )
 
 
@@ -95,40 +92,28 @@ def generate_all_interpretations(
             print("  3. Cell vulnerability coefficients...")
             results["cell_formula"] = _cell_formula_importance(cell_formula, output_dir)
 
-    # 4. Module×Indicator interaction coefficients
-    i_mod = models.get("i_mod_formula")
-    if i_mod is not None:
-        print("  4. Module×Indicator interaction coefficients...")
-        results["module_interaction"] = _module_interaction_coefficients(i_mod, output_dir)
+    # 4. IMC bilinear interaction feature interpretation
+    imc_interaction = models.get("imc_interaction")
+    if imc_interaction is not None:
+        print("  4. IMC interaction feature weights...")
+        results["imc_interactions"] = _imc_interaction_weights(imc_interaction, output_dir)
 
-    # 5. Expression→Dependency effect curve
-    i_expr = models.get("i_expr_formula")
-    if i_expr is not None:
-        print("  5. Expression effect curve...")
-        results["expr_effect"] = _expression_effect_curve(i_expr, output_dir)
-
-    # 6. Interaction blend weights
-    blend = models.get("interaction_blend")
-    if blend is not None:
-        print("  6. Interaction blend weights...")
-        results["blend_weights"] = _blend_weights(blend, output_dir)
-
-    # 7. Gene baseline decomposition
-    print("  7. Gene baseline decomposition...")
+    # 5. Gene baseline decomposition
+    print("  5. Gene baseline decomposition...")
     results["gene_baseline"] = _gene_baseline_decomposition(meta, labels, config, output_dir)
 
-    # 8. Context-specificity analysis
-    print("  8. Context-specificity analysis...")
+    # 6. Context-specificity analysis
+    print("  6. Context-specificity analysis...")
     cell_meta = pd.read_csv(data_dir / "metadata" / "cell_line_metadata.csv")
     results["context"] = _context_specificity(pred_result, labels, cell_meta,
                                                meta, output_dir)
 
-    # 9. Cell module dependency profiles
-    print("  9. Cell module dependency profiles...")
+    # 7. Cell module dependency profiles
+    print("  7. Cell module dependency profiles...")
     results["cell_module"] = _cell_module_profiles(pred_result, labels, meta, output_dir)
 
-    # 10. Case studies
-    print("  10. Case studies...")
+    # 8. Case studies
+    print("  8. Case studies...")
     results["case_studies"] = _case_studies(pred_result, labels, meta, output_dir)
 
     return results
@@ -140,21 +125,31 @@ def _formula_printout(models: dict, output_dir: Path) -> str:
     """Save complete human-readable formula to file."""
     lines = []
     lines.append("=" * 70)
-    lines.append("GENE DEPENDENCY PREDICTION FORMULA (Empirical Bayes)")
+    lines.append("GENE DEPENDENCY PREDICTION FORMULA (Empirical Bayes + SVD)")
     lines.append("=" * 70)
     lines.append("")
 
     shrink_gene = models.get("shrink_gene")
     shrink_cell = models.get("shrink_cell")
+    imc_interaction = models.get("imc_interaction")
 
     if shrink_gene is not None and shrink_cell is not None:
         lines.append("ŷ(c,g) = [w_g·x̄_g + (1-w_g)·Φ(g)] + [v_c·r̄_c + (1-v_c)·Ψ(c)]")
-        lines.append("       + Blend[I_mod, I_expr, I_match, I_ew]")
+        if imc_interaction is not None:
+            lines.append("       + x_c^T W H^T y_g")
         lines.append("")
         lines.append(f"SHRINKAGE: λ_gene={shrink_gene.lambda_:.1f}, λ_cell={shrink_cell.lambda_:.1f}")
         lines.append(f"  w_g = n_g/(n_g+λ_gene) ∈ [0, 1]  (0=cold, 1=warm)")
         lines.append(f"  v_c = m_c/(m_c+λ_cell) ∈ [0, 1]")
         lines.append("")
+
+        if imc_interaction is not None and imc_interaction.Z_ is not None:
+            lines.append("─" * 70)
+            lines.append(f"IMC INTERACTION: rank={imc_interaction.rank}")
+            lines.append(f"  Training R² = {imc_interaction.train_r2_:.4f} (on double residual)")
+            for ci, gj, z in imc_interaction.get_top_interactions(top_n=10):
+                lines.append(f"  Z[{ci}, {gj}] = {z:+.4f}")
+            lines.append("")
 
         gf = shrink_gene.gene_formula_
         if gf is not None:
@@ -170,7 +165,7 @@ def _formula_printout(models: dict, output_dir: Path) -> str:
             lines.append(cf.formula_str(top_n=10))
             lines.append("")
     else:
-        lines.append("ŷ(c,g) = μ̂_g + β̂_c + Blend[I_mod, I_expr, I_match, I_ew]")
+        lines.append("ŷ(c,g) = μ̂_g + β̂_c")
         lines.append("")
 
         gene_formula = models.get("gene_formula")
@@ -187,42 +182,7 @@ def _formula_printout(models: dict, output_dir: Path) -> str:
             lines.append(cell_formula.formula_str(top_n=10))
             lines.append("")
 
-    i_mod = models.get("i_mod_formula")
-    if i_mod is not None:
-        lines.append("─" * 70)
-        lines.append("MODULE×INDICATOR INTERACTION I_mod:")
-        lines.append(i_mod.formula_str())
-        lines.append("")
-
-    i_expr = models.get("i_expr_formula")
-    if i_expr is not None:
-        lines.append("─" * 70)
-        lines.append("EXPRESSION EFFECT I_expr:")
-        lines.append(i_expr.formula_str())
-        lines.append("")
-
-    i_match = models.get("i_match_formula")
-    if i_match is not None:
-        lines.append("─" * 70)
-        lines.append("MODULE-MATCH I_match:")
-        lines.append(i_match.formula_str())
-        lines.append("")
-
-    i_ew = models.get("i_ew_formula")
-    if i_ew is not None:
-        lines.append("─" * 70)
-        lines.append("EVIDENCE-WEIGHTED I_ew:")
-        lines.append(i_ew.formula_str())
-        lines.append("")
-
-    blend = models.get("interaction_blend")
-    if blend is not None:
-        lines.append("─" * 70)
-        lines.append("INTERACTION BLEND:")
-        for name, w in blend.get_weights():
-            lines.append(f"  α_{name} = {w:+.4f}")
-        lines.append(f"  intercept = {blend.intercept_:.4f}")
-        lines.append("=" * 70)
+    lines.append("=" * 70)
 
     path = output_dir / "prediction_formula.txt"
     with open(path, "w", encoding="utf-8") as f:
@@ -263,47 +223,24 @@ def _cell_formula_importance(
     return str(path)
 
 
-def _module_interaction_coefficients(
-    i_mod: ModuleInteractionFormula,
+def _imc_interaction_weights(
+    imc: IMCInteraction,
     output_dir: Path,
 ) -> str:
-    """Export module×indicator interaction coefficients (14 named values)."""
-    coefs = i_mod.get_coefficients()
-    df = pd.DataFrame(coefs, columns=["module", "coefficient"])
-    df["abs_coefficient"] = np.abs(df["coefficient"])
-    df = df.sort_values("abs_coefficient", ascending=False)
-    path = output_dir / "module_interaction_coefficients.csv"
-    df.to_csv(path, index=False)
-    for _, row in df.iterrows():
-        if abs(row["coefficient"]) > 1e-6:
-            print(f"    {row['module']}: {row['coefficient']:+.4f}")
-    return str(path)
+    """Export IMC bilinear interaction feature×feature weights."""
+    if imc.Z_ is None:
+        return ""
 
-
-def _expression_effect_curve(
-    i_expr: ExpressionEffectFormula,
-    output_dir: Path,
-) -> str:
-    """Export expression→dependency effect curve as a table."""
-    z_vals = np.linspace(-4, 4, 100)
-    preds = i_expr.predict(z_vals)
-    df = pd.DataFrame({"z_score": z_vals, "effect": preds})
-    path = output_dir / "expression_effect_curve.csv"
-    df.to_csv(path, index=False)
-    print(f"    θ = [{', '.join(f'{c:.4f}' for c in i_expr.coefficients_)}]")
-    return str(path)
-
-
-def _blend_weights(blend: InteractionBlend, output_dir: Path) -> str:
-    """Export interaction blend weights."""
-    weights = blend.get_weights()
-    df = pd.DataFrame(weights, columns=["component", "weight"])
+    top = imc.get_top_interactions(top_n=50)
+    df = pd.DataFrame(top, columns=["cell_feature", "gene_feature", "weight"])
     df["abs_weight"] = np.abs(df["weight"])
     df = df.sort_values("abs_weight", ascending=False)
-    path = output_dir / "interaction_blend_weights.csv"
+    path = output_dir / "imc_interaction_weights.csv"
     df.to_csv(path, index=False)
-    for _, row in df.iterrows():
-        print(f"    {row['component']}: {row['weight']:+.4f}")
+
+    print(f"    IMC: rank={imc.rank}, R²={imc.train_r2_:.4f}")
+    for _, row in df.head(5).iterrows():
+        print(f"    {row['cell_feature']} × {row['gene_feature']}: {row['weight']:+.4f}")
     return str(path)
 
 

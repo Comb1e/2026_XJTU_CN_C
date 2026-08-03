@@ -112,16 +112,15 @@ prediction:
     # Cell vulnerability formula: β̂_c = Ridge(cell_features)
     cell_alpha: 10.0                 # Ridge regularization (stronger prior)
 
-    # Interaction formula regularization
-    interaction_alpha: 1.0           # Module×Indicator Ridge alpha
-    expr_alpha: 1.0                  # Expression effect Ridge alpha
-    match_alpha: 1.0                 # Module-match Ridge alpha
-
     # Cold-start: pathway-similarity KNN transfer
     cold_knn: 20                     # Number of warm neighbors for cold genes
 
-    # Interaction blend: RidgeCV alpha search
-    blend_alphas: [0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]
+    # ── Inductive Matrix Completion (IMC) bilinear interaction ────────────
+    imc:
+      rank: 12                        # Latent dimension r in Z = WH^T
+      lambda_w: 0.1                   # Ridge regularization for W
+      lambda_h: 0.1                   # Ridge regularization for H
+      max_iter: 30                    # ALS iterations
 
   # ── Legacy white-box config (preserved for reference; not used by formula models)
   whitebox:

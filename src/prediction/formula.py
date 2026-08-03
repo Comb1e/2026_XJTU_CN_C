@@ -1,29 +1,30 @@
 """Formula-based interpretable gene dependency prediction.
 
-Architecture (Empirical Bayes smooth transition):
+Architecture (Empirical Bayes + Inductive Matrix Completion):
 
-    ŷ(c,g) = μ̂_g + β̂_c + Blend[I_mod, I_expr, I_match, I_ew]
+    ŷ(c,g) = μ̂_g + β̂_c + x_c^T W H^T y_g
 
 where:
   - μ̂_g = w_g·x̄_g + (1-w_g)·Φ(g)  ← empirical Bayes shrinkage
     w_g = n_g/(n_g+λ),  Φ(g) = Ridge(G1+G2 → gene mean)
   - β̂_c = v_c·r̄_c + (1-v_c)·Ψ(c)  ← same shrinkage for cells
     v_c = m_c/(m_c+λ_cell), Ψ(c) = Ridge(G3 → cell mean)
-  - I_mod : Module×Indicator interaction (14 named coeffs)
-  - I_expr : Asymmetric expression→dependency curve (4 coeffs)
-  - I_match : Module-weighted expression percentile (14 coeffs)
-  - I_ew : Evidence-weighted expression coupling (1 coeff)
+  - x_c^T W H^T y_g  ← IMC bilinear interaction
+    x_c: cell features (G3), y_g: gene features (G1+G2)
+    W ∈ R^{f_c×r}, H ∈ R^{f_g×r}, rank r ≪ min(f_c,f_g)
+    Solved via Alternating Least Squares (ALS)
 
-Key innovation: NO hard warm/cold distinction. Every gene uses the SAME formula;
-the evidence weight w_g smoothly transitions from 0 (cold: pure prior) to 1
-(warm: data-dominated). This is the same principle used by Chronos (hierarchical
-kernel prior), CERES (hierarchical prior), and ashr (adaptive shrinkage).
+Key innovation: NO hard warm/cold distinction. The IMC interaction term
+naturally handles cold genes via their feature vectors y_g — no per-gene
+latent factors needed. All parameters are in W and H (shared across all
+genes and cells).
 
 References:
   - Chronos: r_cg = R*_cg/R_c − 1 (Dempster et al., Genome Biology 2021)
   - CERES: hierarchical prior + partial pooling (Meyers et al., Nat Genet 2017)
+  - IMC: Provable Inductive Matrix Completion (Jain & Dhillon, 2013)
+  - IMC for gene-disease: Natarajan & Dhillon, Bioinformatics 2014
   - ashr: adaptive shrinkage (Stephens, Biostatistics 2017)
-  - James-Stein estimator (1961)
   - MitoCarta3.0: 149 MitoPathways, 14 modules (Rath et al., 2021)
 """
 
@@ -498,524 +499,262 @@ class CellVulnerabilityFormula:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Formula 3: Module×Indicator Interaction
-#   I_mod(c,g) = Σ_m η_m · Module_m(g) · Indicator_m(c)
+# Inductive Matrix Completion (IMC) Bilinear Interaction
+#   r̂(c,g) = x_c^T W H^T y_g
+#
+# Models the double-residual r = y − μ̂_g − β̂_c as a bilinear form of
+# cell features x_c (G3: ~115 dims) and gene features y_g (G1+G2: ~50 dims).
+#
+# Key properties:
+#   - W ∈ R^{f_c × r}, H ∈ R^{f_g × r}, rank r ≪ min(f_c, f_g)
+#   - Solved via alternating least squares (ALS): fix H → Ridge(W), fix W → Ridge(H)
+#   - NATURALLY handles cold genes: prediction uses gene features y_g
+#     which exist for ALL genes — no per-gene label-derived parameters
+#   - Fully formula-interpretable: Z = WH^T gives named feature×feature weights
+#
+# References:
+#   - Jain & Dhillon (2013): "Provable Inductive Matrix Completion"
+#   - Natarajan & Dhillon (2014): IMC for gene–disease association prediction
+#   - MM-LDA (2023): IMC + GAT for lncRNA–disease cold-start prediction
 # ═══════════════════════════════════════════════════════════════════════════════
 
-class ModuleInteractionFormula:
-    """Module membership × Cell indicator multiplicative interaction.
 
-    I_mod(c,g) = Σ_{m=0}^{13} η_m · Module_m(g) · Indicator_m(c)
+class IMCInteraction:
+    """Inductive Matrix Completion bilinear interaction model.
 
-    This is the KEY mechanistic insight derived from the Chronos model:
-    gene essentiality depends on the cell's activity in the gene's module.
+    Models the double-residual r = y − μ̂_g − β̂_c as:
 
-    Each η_m measures: "how much does cell-level module-m activity amplify
-    the dependency of module-m genes?"
+        r̂(c,g) = x_c^T W H^T y_g
 
-    14 named coefficients, one per mitochondrial module:
-      OXPHOS_CI(0), OXPHOS_CII_CIII(1), OXPHOS_CIV_CV(2), TCA_PYRUVATE(3),
-      FAO_LIPID(4), AA_COFACTOR(5), MITO_RIBOSOME(6), mtDNA_RNA(7),
-      PROTEIN_IMPORT(8), TRANSPORT(9), REDOX_DETOX(10), MITO_DYNAMICS(11),
-      CELL_DEATH(12), SIGNALING(13)
+    where:
+      - x_c ∈ R^{f_c}: cell feature vector (G3 indicators, lineage, pathway PCA, etc.)
+      - y_g ∈ R^{f_g}: gene feature vector (G1 module membership + G2 expression profile)
+      - W ∈ R^{f_c × r}, H ∈ R^{f_g × r}: low-rank bilinear kernel factors
+      - r: latent dimension (configurable, default 10)
+
+    Solved via Alternating Least Squares (ALS):
+      1. Fix H, solve Ridge for vec(W) — design matrix N × (f_c·r)
+      2. Fix W, solve Ridge for vec(H) — design matrix N × (f_g·r)
+      3. Repeat until convergence or max_iter.
+
+    Cold-start: prediction uses gene features y_g directly — no per-gene
+    latent factors needed. All parameters are in W and H (shared across
+    all genes and cells).
     """
 
-    MODULE_NAMES = [
-        "OXPHOS_CI", "OXPHOS_CII_CIII", "OXPHOS_CIV_CV", "TCA_PYRUVATE",
-        "FAO_LIPID", "AA_COFACTOR", "MITO_RIBOSOME", "mtDNA_RNA",
-        "PROTEIN_IMPORT", "TRANSPORT", "REDOX_DETOX", "MITO_DYNAMICS",
-        "CELL_DEATH", "SIGNALING",
-    ]
+    def __init__(
+        self,
+        rank: int = 10,
+        lambda_w: float = 1.0,
+        lambda_h: float = 1.0,
+        max_iter: int = 30,
+        tol: float = 1e-4,
+        random_state: int = 42,
+    ):
+        self.rank = rank
+        self.lambda_w = lambda_w
+        self.lambda_h = lambda_h
+        self.max_iter = max_iter
+        self.tol = tol
+        self.random_state = random_state
 
-    def __init__(self, alpha: float = 1.0, n_modules: int = 14):
-        self.alpha = alpha
-        self.n_modules = n_modules
-        self.model_: Ridge | None = None
-        self.coefficients_: np.ndarray | None = None  # (n_modules,)
-        self.intercept_: float = 0.0
+        # Learned parameters
+        self.W_: np.ndarray | None = None       # (f_c, r)
+        self.H_: np.ndarray | None = None       # (f_g, r)
+        self.cell_feature_names_: list[str] = []
+        self.gene_feature_names_: list[str] = []
+        self.Z_: np.ndarray | None = None       # (f_c, f_g) = W H^T
+        self.train_r2_: float = 0.0
+        self.iterations_: int = 0
+
+    # ── Fit ────────────────────────────────────────────────────────────────
 
     def fit(
         self,
-        cell_ids: np.ndarray,               # (N,) cell identifiers
-        gene_ids: np.ndarray,                # (N,) gene identifiers
-        residuals: np.ndarray,               # (N,) double residual y - μ̂_g - β̂_c
-        module_membership: np.ndarray,        # (N, 14) one-hot module membership per pair
-        cell_indicators: np.ndarray,          # (N, 14) cell indicator values per pair
-    ) -> "ModuleInteractionFormula":
-        """Fit Ridge on the 14 interaction features."""
-        # Construct: X[:, m] = module_membership[:, m] * cell_indicators[:, m]
-        X = (module_membership.astype(np.float64) *
-             cell_indicators.astype(np.float64))
+        X_cell: np.ndarray,                # (N, f_c) cell feature matrix
+        X_gene: np.ndarray,                # (N, f_g) gene feature matrix
+        residuals: np.ndarray,             # (N,) double residual
+        cell_feature_names: list[str] | None = None,
+        gene_feature_names: list[str] | None = None,
+        verbose: bool = True,
+    ) -> "IMCInteraction":
+        """Fit IMC bilinear model via Alternating Least Squares.
+
+        Args:
+            X_cell: (N, f_c) cell feature matrix (float32/float64).
+            X_gene: (N, f_g) gene feature matrix.
+            residuals: (N,) double residual y − μ̂_g − β̂_c.
+            cell_feature_names: optional names for cell feature columns.
+            gene_feature_names: optional names for gene feature columns.
+        """
+        from sklearn.linear_model import Ridge
+
+        N, f_c = X_cell.shape
+        _, f_g = X_gene.shape
+        r = min(self.rank, min(f_c, f_g))
+
+        if cell_feature_names is not None:
+            self.cell_feature_names_ = list(cell_feature_names)
+        if gene_feature_names is not None:
+            self.gene_feature_names_ = list(gene_feature_names)
+
         y = residuals.astype(np.float64)
-        X = np.nan_to_num(X, nan=0.0)
+        Xc = X_cell.astype(np.float64)
+        Xg = X_gene.astype(np.float64)
 
-        ridge_cv = RidgeCV(
-            alphas=np.logspace(-2, 3, 20),
-            fit_intercept=True,
-            store_cv_results=False,
-        )
-        ridge_cv.fit(X, y)
+        # Initialize W and H randomly
+        rng = np.random.RandomState(self.random_state)
+        self.W_ = rng.randn(f_c, r).astype(np.float64) * 0.01
+        self.H_ = rng.randn(f_g, r).astype(np.float64) * 0.01
 
-        self.model_ = Ridge(alpha=ridge_cv.alpha_, fit_intercept=True)
-        self.model_.fit(X, y)
-        self.coefficients_ = self.model_.coef_
-        self.intercept_ = float(self.model_.intercept_)
+        prev_loss = float("inf")
 
-        # Report
-        nz = int(np.sum(np.abs(self.coefficients_) > 1e-6))
-        top_idx = np.argmax(np.abs(self.coefficients_))
-        print(f"  Module interaction: {nz}/{self.n_modules} nonzero, "
-              f"α={ridge_cv.alpha_:.2f}, "
-              f"top={self.MODULE_NAMES[top_idx]}({self.coefficients_[top_idx]:.4f})")
+        for iteration in range(self.max_iter):
+            # ── Step 1: Fix H, solve for W ──
+            # Prediction: ŷ_i = x_{c_i}^T W (H^T y_{g_i})
+            # = trace(W^T x_{c_i} (H^T y_{g_i})^T)
+            # = vec(W)^T (x_{c_i} ⊗ (H^T y_{g_i}))
+            # Design matrix X_w: (N, f_c*r)
+            z_i = Xg @ self.H_  # (N, r)
+            X_w = np.zeros((N, f_c * r), dtype=np.float64)
+            for a in range(f_c):
+                col_start = a * r
+                X_w[:, col_start:col_start + r] = Xc[:, a:a+1] * z_i
+
+            ridge_w = Ridge(alpha=self.lambda_w, fit_intercept=False, solver="lsqr")
+            ridge_w.fit(X_w, y)
+            self.W_ = ridge_w.coef_.reshape(f_c, r)
+
+            # ── Step 2: Fix W, solve for H ──
+            # Prediction: ŷ_i = y_{g_i}^T H (W^T x_{c_i})
+            # = vec(H)^T (y_{g_i} ⊗ (W^T x_{c_i}))
+            u_i = Xc @ self.W_  # (N, r)
+            X_h = np.zeros((N, f_g * r), dtype=np.float64)
+            for a in range(f_g):
+                col_start = a * r
+                X_h[:, col_start:col_start + r] = Xg[:, a:a+1] * u_i
+
+            ridge_h = Ridge(alpha=self.lambda_h, fit_intercept=False, solver="lsqr")
+            ridge_h.fit(X_h, y)
+            self.H_ = ridge_h.coef_.reshape(f_g, r)
+
+            # ── Convergence check ──
+            pred = self._predict_from_features(Xc, Xg)
+            loss = np.mean((y - pred) ** 2)
+            r2 = 1.0 - np.sum((y - pred) ** 2) / max(np.sum((y - np.mean(y)) ** 2), 1e-12)
+
+            if abs(prev_loss - loss) < self.tol * max(loss, 1e-12):
+                if verbose:
+                    print(f"  IMC converged at iter {iteration+1}: loss={loss:.6f}, R²={r2:.4f}")
+                break
+
+            prev_loss = loss
+
+            if verbose and (iteration == 0 or (iteration + 1) % 5 == 0):
+                print(f"  IMC iter {iteration+1}: loss={loss:.6f}, R²={r2:.4f}")
+
+        self.iterations_ = iteration + 1
+        self.train_r2_ = r2
+        self.Z_ = self.W_ @ self.H_.T  # (f_c, f_g) full interaction kernel
+
         return self
+
+    # ── Predict ─────────────────────────────────────────────────────────────
 
     def predict(
         self,
-        module_membership: np.ndarray,       # (N, 14)
-        cell_indicators: np.ndarray,          # (N, 14)
+        X_cell: np.ndarray,                # (N, f_c)
+        X_gene: np.ndarray,                # (N, f_g)
     ) -> np.ndarray:
-        """Predict interaction values for (cell, gene) pairs."""
-        if self.model_ is None:
-            return np.zeros(len(module_membership), dtype=np.float32)
-        X = (module_membership.astype(np.float64) *
-             cell_indicators.astype(np.float64))
-        X = np.nan_to_num(X, nan=0.0)
-        return self.model_.predict(X).astype(np.float32)
+        """Predict interaction values: r̂ = diag(X_cell W H^T X_gene^T).
 
-    def get_coefficients(self) -> list[tuple[str, float]]:
-        """Return named module interaction coefficients."""
-        if self.coefficients_ is None:
+        Equivalent to: ŷ_i = x_{c_i}^T W H^T y_{g_i}
+        Efficiently computed as: sum((X_cell @ W) * (X_gene @ H), axis=1)
+        """
+        return self._predict_from_features(
+            X_cell.astype(np.float64),
+            X_gene.astype(np.float64),
+        ).astype(np.float32)
+
+    def _predict_from_features(
+        self,
+        Xc: np.ndarray,   # (N, f_c) float64
+        Xg: np.ndarray,   # (N, f_g) float64
+    ) -> np.ndarray:
+        """Core prediction: ŷ_i = x_i^T W H^T y_i = sum((x_i^T W) * (y_i^T H))."""
+        if self.W_ is None or self.H_ is None:
+            return np.zeros(len(Xc), dtype=np.float64)
+        left = Xc @ self.W_    # (N, r)
+        right = Xg @ self.H_   # (N, r)
+        return np.sum(left * right, axis=1)
+
+    # ── Formula & Interpretation ───────────────────────────────────────────
+
+    def formula_str(self, top_n: int = 10) -> str:
+        """Return human-readable formula string."""
+        if self.Z_ is None:
+            return "r̂(c,g) = 0"
+
+        lines = [
+            f"r̂(c,g) = x_c^T W H^T y_g",
+            f"  rank = {self.rank}, f_c = {self.W_.shape[0]}, f_g = {self.H_.shape[0]}",
+            f"  Training R² = {self.train_r2_:.4f} (on double residual)",
+            f"  ALS iterations: {self.iterations_}",
+            "",
+            "Top feature×feature interactions (|Z_ij|):",
+        ]
+
+        # Find top |Z_ij| entries
+        Z_abs = np.abs(self.Z_)
+        flat_indices = np.argsort(-Z_abs.ravel())
+        cell_names = (self.cell_feature_names_
+                      if self.cell_feature_names_
+                      else [f"cell_feat_{i}" for i in range(self.Z_.shape[0])])
+        gene_names = (self.gene_feature_names_
+                      if self.gene_feature_names_
+                      else [f"gene_feat_{j}" for j in range(self.Z_.shape[1])])
+
+        for idx in flat_indices[:top_n]:
+            i = idx // self.Z_.shape[1]
+            j = idx % self.Z_.shape[1]
+            z_val = self.Z_[i, j]
+            cn = cell_names[i] if i < len(cell_names) else f"c{i}"
+            gn = gene_names[j] if j < len(gene_names) else f"g{j}"
+            lines.append(f"  Z[{cn}, {gn}] = {z_val:+.4f}")
+
+        return "\n".join(lines)
+
+    def get_top_interactions(self, top_n: int = 20) -> list[tuple[str, str, float]]:
+        """Return top |Z_ij| entries as (cell_feature, gene_feature, weight)."""
+        if self.Z_ is None:
             return []
-        return [(self.MODULE_NAMES[m], float(self.coefficients_[m]))
-                for m in range(self.n_modules)]
 
-    def formula_str(self) -> str:
-        """Return human-readable formula string."""
-        coefs = self.get_coefficients()
-        parts = ["I_mod(c,g) = Σ_m η_m · Module_m(g) · Indicator_m(c)"]
-        parts.append(f"  intercept = {self.intercept_:.4f}")
-        for name, coef in coefs:
-            if abs(coef) > 1e-6:
-                sign = "+" if coef >= 0 else "-"
-                parts.append(f"  η_{name} = {sign} {abs(coef):.4f}")
-        return "\n".join(parts)
+        Z_abs = np.abs(self.Z_)
+        flat_indices = np.argsort(-Z_abs.ravel())
+        cell_names = (self.cell_feature_names_
+                      if self.cell_feature_names_
+                      else [f"cell_feat_{i}" for i in range(self.Z_.shape[0])])
+        gene_names = (self.gene_feature_names_
+                      if self.gene_feature_names_
+                      else [f"gene_feat_{j}" for j in range(self.Z_.shape[1])])
+
+        results = []
+        for idx in flat_indices[:top_n]:
+            i = idx // self.Z_.shape[1]
+            j = idx % self.Z_.shape[1]
+            results.append((cell_names[i], gene_names[j], float(self.Z_[i, j])))
+        return results
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Formula 4: Asymmetric Expression→Dependency Effect
-#   I_expr(c,g) = θ₁·z + θ₂·|z| + θ₃·max(0,z) + θ₄·min(0,z)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-class ExpressionEffectFormula:
-    """Piecewise-linear expression→dependency mapping.
-
-    I_expr(c,g) = θ₁·z + θ₂·|z| + θ₃·max(0,z) + θ₄·min(0,z)
-
-    where z = z_{c,g} is the expression z-score of gene g in cell c.
-
-    This captures asymmetric, nonlinear effects:
-      - θ₁ : linear trend (higher expression → more/less dependency)
-      - θ₂ : magnitude effect (extreme expression in EITHER direction matters)
-      - θ₃ : positive tail (overexpression-specific effect)
-      - θ₄ : negative tail (underexpression-specific effect)
-
-    4 interpretable coefficients.
-    """
-
-    def __init__(self, alpha: float = 1.0):
-        self.alpha = alpha
-        self.model_: Ridge | None = None
-        self.scaler_: StandardScaler | None = None
-        self.coefficients_: np.ndarray | None = None  # [θ₁, θ₂, θ₃, θ₄]
-        self.intercept_: float = 0.0
-
-    def fit(
-        self,
-        z_cg: np.ndarray,                    # (N,) expression z-scores
-        residuals: np.ndarray,               # (N,) double residual
-    ) -> "ExpressionEffectFormula":
-        """Fit Ridge on the 4 basis functions of z."""
-        z = z_cg.astype(np.float64).reshape(-1, 1)
-        y = residuals.astype(np.float64)
-
-        # Build basis functions
-        X = np.column_stack([
-            z.ravel(),                       # θ₁: linear
-            np.abs(z.ravel()),               # θ₂: magnitude
-            np.maximum(0, z.ravel()),         # θ₃: positive tail
-            np.minimum(0, z.ravel()),         # θ₄: negative tail
-        ])
-        X = np.nan_to_num(X, nan=0.0)
-
-        self.scaler_ = StandardScaler()
-        X_scaled = self.scaler_.fit_transform(X)
-
-        ridge_cv = RidgeCV(
-            alphas=np.logspace(-3, 2, 20),
-            fit_intercept=True,
-            store_cv_results=False,
-        )
-        ridge_cv.fit(X_scaled, y)
-
-        self.model_ = Ridge(alpha=ridge_cv.alpha_, fit_intercept=True)
-        self.model_.fit(X_scaled, y)
-        self.coefficients_ = self.model_.coef_
-        self.intercept_ = float(self.model_.intercept_)
-
-        from sklearn.metrics import r2_score
-        y_pred = self.model_.predict(X_scaled)
-        r2 = r2_score(y, y_pred)
-        print(f"  Expression effect: R²={r2:.4f}, "
-              f"θ=[{', '.join(f'{c:.4f}' for c in self.coefficients_)}], "
-              f"α={ridge_cv.alpha_:.2f}")
-        return self
-
-    def predict(self, z_cg: np.ndarray) -> np.ndarray:
-        """Predict expression-driven dependency effect."""
-        if self.model_ is None:
-            return np.zeros(len(z_cg), dtype=np.float32)
-        z = z_cg.astype(np.float64).reshape(-1, 1)
-        X = np.column_stack([
-            z.ravel(), np.abs(z.ravel()),
-            np.maximum(0, z.ravel()), np.minimum(0, z.ravel()),
-        ])
-        X = np.nan_to_num(X, nan=0.0)
-        X_scaled = self.scaler_.transform(X)
-        return self.model_.predict(X_scaled).astype(np.float32)
-
-    def formula_str(self) -> str:
-        """Return human-readable formula string."""
-        if self.coefficients_ is None:
-            return "I_expr(c,g) = 0"
-        names = ["z", "|z|", "max(0,z)", "min(0,z)"]
-        parts = [f"I_expr(c,g) = {self.intercept_:.4f}"]
-        for name, coef in zip(names, self.coefficients_):
-            sign = "+" if coef >= 0 else "-"
-            parts.append(f"  {sign} {abs(coef):.4f} · {name}")
-        return "\n".join(parts)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Formula 5: Module-Weighted Expression Percentile
-#   I_match(c,g) = Σ_m ζ_m · Module_m(g) · ExprPercentile(c,g)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-class ModuleMatchFormula:
-    """Gene module membership weighted by expression percentile.
-
-    I_match(c,g) = Σ_m ζ_m · Module_m(g) · ExprPercentile(c,g)
-
-    Captures: "for genes in module m, how much does their expression
-    percentile (relative to other genes in the same cell) matter?"
-
-    14 named coefficients, one per module.
-    """
-
-    MODULE_NAMES = ModuleInteractionFormula.MODULE_NAMES
-
-    def __init__(self, alpha: float = 1.0, n_modules: int = 14):
-        self.alpha = alpha
-        self.n_modules = n_modules
-        self.model_: Ridge | None = None
-        self.coefficients_: np.ndarray | None = None
-        self.intercept_: float = 0.0
-
-    def fit(
-        self,
-        module_membership: np.ndarray,        # (N, 14)
-        expr_percentile: np.ndarray,          # (N,)
-        residuals: np.ndarray,                # (N,)
-    ) -> "ModuleMatchFormula":
-        """Fit Ridge on module×percentile features."""
-        pct = expr_percentile.astype(np.float64).reshape(-1, 1)
-        X = module_membership.astype(np.float64) * pct  # broadcasting: (N,14) * (N,1)
-        y = residuals.astype(np.float64)
-        X = np.nan_to_num(X, nan=0.0)
-
-        ridge_cv = RidgeCV(
-            alphas=np.logspace(-2, 3, 20),
-            fit_intercept=True,
-            store_cv_results=False,
-        )
-        ridge_cv.fit(X, y)
-
-        self.model_ = Ridge(alpha=ridge_cv.alpha_, fit_intercept=True)
-        self.model_.fit(X, y)
-        self.coefficients_ = self.model_.coef_
-        self.intercept_ = float(self.model_.intercept_)
-
-        nz = int(np.sum(np.abs(self.coefficients_) > 1e-6))
-        if nz > 0:
-            top_idx = np.argmax(np.abs(self.coefficients_))
-            top_name = self.MODULE_NAMES[top_idx]
-        else:
-            top_name = "none"
-        print(f"  Module match: {nz}/{self.n_modules} nonzero, "
-              f"α={ridge_cv.alpha_:.2f}, top={top_name}")
-        return self
-
-    def predict(
-        self,
-        module_membership: np.ndarray,        # (N, 14)
-        expr_percentile: np.ndarray,          # (N,)
-    ) -> np.ndarray:
-        """Predict module-weighted expression percentile effect."""
-        if self.model_ is None:
-            return np.zeros(len(module_membership), dtype=np.float32)
-        pct = expr_percentile.astype(np.float64).reshape(-1, 1)
-        X = module_membership.astype(np.float64) * pct
-        X = np.nan_to_num(X, nan=0.0)
-        return self.model_.predict(X).astype(np.float32)
-
-    def formula_str(self) -> str:
-        """Return human-readable formula string."""
-        if self.coefficients_ is None:
-            return "I_match(c,g) = 0"
-        parts = ["I_match(c,g) = Σ_m ζ_m · Module_m(g) · ExprPercentile(c,g)"]
-        for m in range(self.n_modules):
-            coef = self.coefficients_[m]
-            if abs(coef) > 1e-6:
-                sign = "+" if coef >= 0 else "-"
-                parts.append(f"  ζ_{self.MODULE_NAMES[m]} = {sign} {abs(coef):.4f}")
-        return "\n".join(parts)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Formula 6: Evidence-Weighted Expression Coupling
-#   I_ew(c,g) = ω · EvidenceWeight(g) · z_cg
-# ═══════════════════════════════════════════════════════════════════════════════
-
-class EvidenceWeightedFormula:
-    """Evidence-weighted expression coupling.
-
-    I_ew(c,g) = ω · EvidenceWeight(g) · z(c,g)
-
-    Hypothesis: genes with stronger mitochondrial evidence (MitoCarta
-    confidence) show tighter coupling between expression and dependency.
-
-    Single coefficient ω — the simplest and most interpretable formula.
-    """
-
-    def __init__(self):
-        self.omega_: float = 0.0
-        self.intercept_: float = 0.0
-
-    def fit(
-        self,
-        evidence_weight: np.ndarray,          # (N,) gene evidence weights
-        z_cg: np.ndarray,                      # (N,) expression z-scores
-        residuals: np.ndarray,                 # (N,) double residual
-    ) -> "EvidenceWeightedFormula":
-        """Fit single-feature OLS."""
-        X = (evidence_weight * z_cg).astype(np.float64)
-        y = residuals.astype(np.float64)
-        mask = np.isfinite(X) & np.isfinite(y)
-        X = X[mask].reshape(-1, 1)
-        y = y[mask]
-
-        if len(y) < 10:
-            return self
-
-        # Single-feature Ridge
-        ridge = Ridge(alpha=0.01)
-        ridge.fit(X, y)
-        self.omega_ = float(ridge.coef_[0])
-        self.intercept_ = float(ridge.intercept_)
-
-        from sklearn.metrics import r2_score
-        y_pred = ridge.predict(X)
-        r2 = r2_score(y, y_pred)
-        print(f"  Evidence-weighted: R²={r2:.4f}, ω={self.omega_:.4f}")
-        return self
-
-    def predict(
-        self,
-        evidence_weight: np.ndarray,
-        z_cg: np.ndarray,
-    ) -> np.ndarray:
-        """Predict evidence-weighted expression effect."""
-        X = (evidence_weight * z_cg).astype(np.float32)
-        X = np.nan_to_num(X, nan=0.0)
-        return (self.intercept_ + self.omega_ * X).astype(np.float32)
-
-    def formula_str(self) -> str:
-        return f"I_ew(c,g) = {self.intercept_:.4f} + {self.omega_:.4f} · EvidenceWeight(g) · z(c,g)"
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Interaction Blend: RidgeCV combination of interaction formulas
-# ═══════════════════════════════════════════════════════════════════════════════
-
-class InteractionBlend:
-    """RidgeCV blend of multiple interaction formulas.
-
-    Learns: I_blend(c,g) = α₀ + Σ_j α_j · I_j(c,g)
-
-    where I_j are the individual interaction formula predictions.
-    The blend weights α_j are the ONLY learned weights in the interaction
-    term — everything else is fixed by the explicit formulas.
-    """
-
-    def __init__(self, alphas: list[float] | None = None):
-        if alphas is None:
-            alphas = [0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]
-        self.alphas = alphas
-        self.model_: RidgeCV | None = None
-        self.coefficients_: np.ndarray | None = None
-        self.intercept_: float = 0.0
-        self.component_names_: list[str] = []
-
-    def fit(
-        self,
-        interaction_preds: list[np.ndarray],  # list of (N,) arrays
-        residuals: np.ndarray,                # (N,) double residual
-        component_names: list[str] | None = None,
-    ) -> "InteractionBlend":
-        """Fit RidgeCV to find optimal blend weights."""
-        if component_names is not None:
-            self.component_names_ = list(component_names)
-        else:
-            self.component_names_ = [f"I_{i}" for i in range(len(interaction_preds))]
-
-        X = np.column_stack([p.astype(np.float64) for p in interaction_preds])
-        X = np.nan_to_num(X, nan=0.0)
-        y = residuals.astype(np.float64)
-
-        self.model_ = RidgeCV(
-            alphas=self.alphas,
-            fit_intercept=True,
-            store_cv_results=False,
-        )
-        self.model_.fit(X, y)
-        self.coefficients_ = self.model_.coef_
-        self.intercept_ = float(self.model_.intercept_)
-
-        from sklearn.metrics import r2_score
-        y_pred = self.model_.predict(X)
-        r2 = r2_score(y, y_pred)
-        weights = list(zip(self.component_names_, self.coefficients_))
-        print(f"  Interaction blend: R²={r2:.4f}, α={self.model_.alpha_:.2f}")
-        for name, w in weights:
-            print(f"    {name}: {w:+.4f}")
-        return self
-
-    def predict(self, interaction_preds: list[np.ndarray]) -> np.ndarray:
-        """Blend interaction predictions."""
-        if self.model_ is None:
-            return np.zeros(len(interaction_preds[0]), dtype=np.float32)
-        X = np.column_stack([p.astype(np.float64) for p in interaction_preds])
-        X = np.nan_to_num(X, nan=0.0)
-        return self.model_.predict(X).astype(np.float32)
-
-    def get_weights(self) -> list[tuple[str, float]]:
-        """Return named blend weights."""
-        if self.coefficients_ is None:
-            return []
-        return list(zip(self.component_names_, self.coefficients_))
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Cold Gene Transfer: pathway-similarity KNN for interaction term
-# ═══════════════════════════════════════════════════════════════════════════════
-
-class ColdGeneTransfer:
-    """Transfer cell-specific interaction from pathway-similar warm genes.
-
-    For a cold gene g_cold in cell c:
-      I_transfer(c, g_cold) = Σ_{g' ∈ KNN(g_cold)} sim(g_cold, g') · I(c, g') / Σ sim
-
-    Uses MitoCarta3.0 pathway annotations (149-dim) for similarity.
-    The transfer is applied to the INTERACTION term only — μ̂_g and β̂_c
-    are already available for all genes/cells via their explicit formulas.
-    """
-
-    def __init__(self, k: int = 20):
-        self.k = k
-        self.warm_genes_: list[str] = []
-        self.cold_to_warm_: dict[str, list[tuple[str, float]]] = {}
-
-    def fit(
-        self,
-        cold_genes: set[str],
-        warm_genes: set[str],
-        pathway_features: pd.DataFrame,      # index=gene, columns=pathway membership
-    ) -> "ColdGeneTransfer":
-        """Build KNN mapping from cold to warm genes via pathway similarity."""
-        from sklearn.neighbors import NearestNeighbors
-
-        warm_list = sorted(warm_genes & set(pathway_features.index))
-        cold_list = sorted(cold_genes & set(pathway_features.index))
-
-        if not warm_list or not cold_list:
-            print(f"  Cold transfer: no pathway features available "
-                  f"(warm={len(warm_list)}, cold={len(cold_list)})")
-            return self
-
-        pw_warm = pathway_features.reindex(warm_list).fillna(0).to_numpy(dtype=np.float32)
-        pw_cold = pathway_features.reindex(cold_list).fillna(0).to_numpy(dtype=np.float32)
-
-        k_actual = min(self.k, len(warm_list))
-        nbrs = NearestNeighbors(n_neighbors=k_actual, metric="cosine")
-        nbrs.fit(pw_warm)
-        distances, indices = nbrs.kneighbors(pw_cold)
-
-        for i, cold_gene in enumerate(cold_list):
-            sims = []
-            for j in range(k_actual):
-                warm_gene = warm_list[indices[i, j]]
-                sim = max(1.0 - distances[i, j], 1e-6)  # cosine → similarity
-                sims.append((warm_gene, sim))
-            total = sum(s for _, s in sims)
-            if total > 0:
-                self.cold_to_warm_[cold_gene] = [(g, s / total) for g, s in sims]
-
-        self.warm_genes_ = warm_list
-        print(f"  Cold transfer: {len(self.cold_to_warm_)} cold genes → "
-              f"{k_actual} warm neighbors each (via 149-dim pathway similarity)")
-        return self
-
-    def predict(
-        self,
-        cell_ids: np.ndarray,
-        gene_ids: np.ndarray,
-        cold_genes: set[str],
-        warm_interaction: dict[tuple[str, str], float],  # (cell, warm_gene) → I
-    ) -> np.ndarray:
-        """Transfer interaction values from warm to cold genes."""
-        preds = np.zeros(len(cell_ids), dtype=np.float32)
-        for i, (c, g) in enumerate(zip(cell_ids, gene_ids)):
-            if g not in cold_genes or g not in self.cold_to_warm_:
-                continue
-            sims = self.cold_to_warm_[g]
-            weighted_sum = 0.0
-            weight_total = 0.0
-            for warm_g, sim in sims:
-                val = warm_interaction.get((c, warm_g))
-                if val is not None:
-                    weighted_sum += sim * val
-                    weight_total += sim
-            if weight_total > 0:
-                preds[i] = float(weighted_sum / weight_total)
-        return preds
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
 # Full Formula Training Pipeline (Empirical Bayes)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def train_formula_models(
-    X: pd.DataFrame,
     y: np.ndarray,
     cell_ids: np.ndarray,
     gene_ids: np.ndarray,
-    expression: pd.DataFrame,
     gene_static_features: pd.DataFrame,
     gene_expr_profile_features: pd.DataFrame,
     cell_features: pd.DataFrame,
-    gene_bl: dict[str, float] | None = None,
-    cell_bl: dict[str, float] | None = None,
-    svd_dot: dict[tuple[str, str], float] | None = None,
-    cf_predictions: dict[tuple[str, str], float] | None = None,
     cold_genes: set[str] | None = None,
     config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -1024,26 +763,20 @@ def train_formula_models(
     Sequential fitting (NO hard warm/cold distinction):
       1. ShrinkageGeneFormula → μ̂_g = w_g·x̄_g + (1-w_g)·Φ(g)
       2. ShrinkageCellFormula → β̂_c = v_c·r̄_c + (1-v_c)·Ψ(c)
-      3. Four interaction formulas on double residual
-      4. InteractionBlend via RidgeCV
-      5. ColdGeneTransfer for genes with n_g=0
+      3. SVDInteraction → I(c,g) = Σ_k σ_k · u_k(c) · v_k(g)
+      4. ColdGeneTransfer for genes with n_g=0
 
     Args:
-        X: full feature DataFrame.
         y: label array.
         cell_ids, gene_ids: identifiers for each row.
-        expression: N_cells × P_genes expression DataFrame.
         gene_static_features: G1 features indexed by gene.
         gene_expr_profile_features: G2 features indexed by gene.
         cell_features: G3 features indexed by cell.
-        gene_bl, cell_bl: unused (kept for interface compatibility).
-        svd_dot: unused.
-        cf_predictions: unused.
         cold_genes: set of cold gene symbols (n_g=0).
         config: configuration dict.
 
     Returns:
-        dict with shrinkage models, formulas, blend, and metadata.
+        dict with shrinkage models, SVD interaction, and metadata.
     """
     if config is None:
         config = {}
@@ -1104,146 +837,48 @@ def train_formula_models(
     print(f"    σ²(r₂)          = {np.var(r2):.6f} "
           f"({100 * np.var(r2) / max(np.var(y), 1e-12):.1f}% remaining)")
 
-    # ── Build interaction feature arrays ──
-    n_modules = 14
-    indicator_names = [
-        "OXPHOS_CI", "OXPHOS_CII_CIII", "OXPHOS_CIV_CV", "TCA_PYRUVATE",
-        "FAO_LIPID", "AA_COFACTOR", "MITO_RIBOSOME", "mtDNA_RNA",
-        "PROTEIN_IMPORT", "TRANSPORT", "REDOX_DETOX", "MITO_DYNAMICS",
-        "CELL_DEATH", "SIGNALING",
-    ]
+    # ── Build feature matrices for IMC interaction ──
+    # X_cell: (N, f_c) from cell_features, indexed by cell_ids
+    # X_gene: (N, f_g) from gene_feat_df, indexed by gene_ids
+    X_cell_arr = cell_features.reindex(cell_ids).to_numpy(dtype=np.float64)
+    X_cell_arr = np.nan_to_num(X_cell_arr, nan=0.0)
+    cell_feature_names = list(cell_features.columns)
 
-    module_membership = np.zeros((n, n_modules), dtype=np.float32)
-    for m in range(n_modules):
-        g1_col = f"gene_module_{m:02d}"
-        if g1_col in gene_static_features.columns:
-            gene_to_val = gene_static_features[g1_col].to_dict()
-            for i, g in enumerate(gene_ids):
-                if g in gene_to_val:
-                    module_membership[i, m] = float(gene_to_val[g])
+    X_gene_arr = gene_feat_df.reindex(gene_ids).to_numpy(dtype=np.float64)
+    X_gene_arr = np.nan_to_num(X_gene_arr, nan=0.0)
+    gene_feature_names = list(gene_feat_df.columns)
 
-    cell_indicators = np.zeros((n, n_modules), dtype=np.float32)
-    for m, name in enumerate(indicator_names):
-        col = f"cell_indicator_{name}"
-        if col in cell_features.columns:
-            cell_to_val = cell_features[col].to_dict()
-            for i, c in enumerate(cell_ids):
-                if c in cell_to_val:
-                    cell_indicators[i, m] = float(cell_to_val[c])
-
-    z_cg = np.zeros(n, dtype=np.float32)
-    cell_to_expr_row = {c: i for i, c in enumerate(expression.index)}
-    gene_to_expr_col = {g: i for i, g in enumerate(expression.columns)}
-    for i, (c, g) in enumerate(zip(cell_ids, gene_ids)):
-        if c in cell_to_expr_row and g in gene_to_expr_col:
-            z_cg[i] = expression.iloc[cell_to_expr_row[c], gene_to_expr_col[g]]
-
-    expr_percentile = np.zeros(n, dtype=np.float32)
-    expr_arr = expression.to_numpy(dtype=np.float32)
-    for i, (c, g) in enumerate(zip(cell_ids, gene_ids)):
-        if c in cell_to_expr_row and g in gene_to_expr_col:
-            cell_row = expr_arr[cell_to_expr_row[c]]
-            expr_percentile[i] = float((cell_row < z_cg[i]).mean())
-
-    evidence_weight = np.ones(n, dtype=np.float32)
-    if "gene_evidence_weight" in gene_static_features.columns:
-        ew_dict = gene_static_features["gene_evidence_weight"].to_dict()
-        for i, g in enumerate(gene_ids):
-            if g in ew_dict:
-                evidence_weight[i] = float(ew_dict[g])
-
-    # ── Step 4: Interaction Formulas ──
-    interaction_preds = []
-    interaction_names = []
-
-    print("\n[Step 4a] Module×Indicator Interaction")
-    i_mod_formula = ModuleInteractionFormula(
-        alpha=fm_cfg.get("interaction_alpha", 1.0), n_modules=n_modules,
+    # ── Step 4: IMC Bilinear Interaction ──
+    print(f"\n[Step 4] IMC Bilinear Interaction (rank={fm_cfg.get('imc', {}).get('rank', 10)})")
+    print("  r̂(c,g) = x_c^T W H^T y_g")
+    imc_cfg = fm_cfg.get("imc", {})
+    imc_interaction = IMCInteraction(
+        rank=imc_cfg.get("rank", 10),
+        lambda_w=imc_cfg.get("lambda_w", 1.0),
+        lambda_h=imc_cfg.get("lambda_h", 1.0),
+        max_iter=imc_cfg.get("max_iter", 30),
     )
-    i_mod_formula.fit(cell_ids, gene_ids, r2, module_membership, cell_indicators)
-    interaction_preds.append(i_mod_formula.predict(module_membership, cell_indicators))
-    interaction_names.append("I_mod")
-
-    print("\n[Step 4b] Expression→Dependency Effect")
-    i_expr_formula = ExpressionEffectFormula(alpha=fm_cfg.get("expr_alpha", 1.0))
-    i_expr_formula.fit(z_cg, r2)
-    interaction_preds.append(i_expr_formula.predict(z_cg))
-    interaction_names.append("I_expr")
-
-    print("\n[Step 4c] Module-Weighted Expression Percentile")
-    i_match_formula = ModuleMatchFormula(
-        alpha=fm_cfg.get("match_alpha", 1.0), n_modules=n_modules,
+    imc_interaction.fit(
+        X_cell_arr, X_gene_arr, r2,
+        cell_feature_names=cell_feature_names,
+        gene_feature_names=gene_feature_names,
     )
-    i_match_formula.fit(module_membership, expr_percentile, r2)
-    interaction_preds.append(i_match_formula.predict(module_membership, expr_percentile))
-    interaction_names.append("I_match")
-
-    print("\n[Step 4d] Evidence-Weighted Expression Coupling")
-    i_ew_formula = EvidenceWeightedFormula()
-    i_ew_formula.fit(evidence_weight, z_cg, r2)
-    interaction_preds.append(i_ew_formula.predict(evidence_weight, z_cg))
-    interaction_names.append("I_ew")
-
-    # ── Step 5: Interaction Blend ──
-    print("\n[Step 5] Interaction Blend via RidgeCV")
-    blend = InteractionBlend(
-        alphas=fm_cfg.get("blend_alphas", [0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]),
-    )
-    blend.fit(interaction_preds, r2, component_names=interaction_names)
-
-    # ── Step 6: Cold Gene Transfer (for n_g=0 genes only) ──
-    cold_transfer = None
-    if cold_genes:
-        print("\n[Step 6] Cold Gene Transfer (pathway-similarity KNN)")
-        from .baselines import build_pw140_membership_features
-        from pathlib import Path
-        gene_meta = pd.read_csv(
-            Path(config["paths"]["data_dir"]) / "metadata" / "gene_metadata.csv",
-        )
-        pathway_meta = pd.read_csv(
-            Path(config["paths"]["data_dir"]) / "metadata" / "pathway_metadata.csv",
-        )
-        pw_features = build_pw140_membership_features(gene_meta, pathway_meta)
-        warm_genes = set(shrink_gene.n_g_.keys()) - cold_genes
-
-        cold_transfer = ColdGeneTransfer(k=fm_cfg.get("cold_knn", 20))
-        cold_transfer.fit(cold_genes, warm_genes, pw_features)
 
     # ── Compute full predictions ──
     mu_arr = shrink_gene.predict_batch(list(gene_ids))
     beta_arr = shrink_cell.predict_batch(list(cell_ids))
-    i_blend_arr = blend.predict(interaction_preds)
-    full_preds = mu_arr + beta_arr + i_blend_arr
-
-    # Cold gene interaction transfer (blend with formula interaction)
-    if cold_transfer is not None and cold_genes:
-        warm_interaction: dict[tuple[str, str], float] = {}
-        for i in range(n):
-            if gene_ids[i] not in cold_genes:
-                warm_interaction[(cell_ids[i], gene_ids[i])] = float(i_blend_arr[i])
-
-        i_transfer = cold_transfer.predict(cell_ids, gene_ids, cold_genes, warm_interaction)
-        cold_mask = np.array([g in cold_genes for g in gene_ids])
-        has_transfer = cold_mask & (i_transfer != 0)
-        if has_transfer.any():
-            full_preds[has_transfer] = (
-                mu_arr[has_transfer] + beta_arr[has_transfer] + i_transfer[has_transfer]
-            )
+    i_arr = imc_interaction.predict(X_cell_arr, X_gene_arr)
+    full_preds = mu_arr + beta_arr + i_arr
 
     # ── Print formula summary ──
-    _print_shrinkage_summary(shrink_gene, shrink_cell,
-                             i_mod_formula, i_expr_formula, i_match_formula, i_ew_formula,
-                             blend)
+    _print_imc_summary(shrink_gene, shrink_cell, imc_interaction)
 
     return {
         "shrink_gene": shrink_gene,
         "shrink_cell": shrink_cell,
-        "i_mod_formula": i_mod_formula,
-        "i_expr_formula": i_expr_formula,
-        "i_match_formula": i_match_formula,
-        "i_ew_formula": i_ew_formula,
-        "interaction_blend": blend,
-        "cold_transfer": cold_transfer,
+        "imc_interaction": imc_interaction,
+        "cell_features": cell_features,
+        "gene_features": gene_feat_df,
         "mu_g": shrink_gene.mu_g_,
         "beta_c": shrink_cell.beta_c_,
         "cold_genes": cold_genes,
@@ -1252,13 +887,8 @@ def train_formula_models(
 
 
 def predict_formula(
-    X: pd.DataFrame,
     cell_ids: np.ndarray,
     gene_ids: np.ndarray,
-    gene_bl: dict[str, float] | None = None,
-    cell_bl: dict[str, float] | None = None,
-    svd_dot: dict[tuple[str, str], float] | None = None,
-    cf_predictions: dict[tuple[str, str], float] | None = None,
     cold_genes: set[str] | None = None,
     models: dict[str, Any] | None = None,
     add_jitter: bool = True,
@@ -1266,10 +896,10 @@ def predict_formula(
     """Generate predictions using trained formula models.
 
     Unified formula for ALL genes (no hard warm/cold distinction):
-      ŷ(c,g) = μ̂_g + β̂_c + Blend[I_mod, I_expr, I_match, I_ew]
+      ŷ(c,g) = μ̂_g + β̂_c + x_c^T W H^T y_g
 
     where μ̂_g and β̂_c come from the empirical Bayes shrinkage models,
-    which smoothly transition from data-dominated (warm) to prior-dominated (cold).
+    and the IMC bilinear interaction uses cell/gene features directly.
     """
     if models is None:
         return np.zeros(len(cell_ids), dtype=np.float32)
@@ -1294,74 +924,25 @@ def predict_formula(
         beta_c = models.get("beta_c", {})
         beta_arr = np.array([beta_c.get(c, 0.0) for c in cell_ids], dtype=np.float32)
 
-    # ── Interaction formulas ──
-    n_modules = 14
-    indicator_names = [
-        "OXPHOS_CI", "OXPHOS_CII_CIII", "OXPHOS_CIV_CV", "TCA_PYRUVATE",
-        "FAO_LIPID", "AA_COFACTOR", "MITO_RIBOSOME", "mtDNA_RNA",
-        "PROTEIN_IMPORT", "TRANSPORT", "REDOX_DETOX", "MITO_DYNAMICS",
-        "CELL_DEATH", "SIGNALING",
-    ]
-
-    module_membership = np.zeros((n, n_modules), dtype=np.float32)
-    for m in range(n_modules):
-        col = f"g1_gene_module_{m:02d}"
-        if col in X.columns:
-            module_membership[:, m] = X[col].to_numpy(dtype=np.float32)
-
-    cell_indicators = np.zeros((n, n_modules), dtype=np.float32)
-    for m, name in enumerate(indicator_names):
-        col = f"g3_cell_indicator_{name}"
-        if col in X.columns:
-            cell_indicators[:, m] = X[col].to_numpy(dtype=np.float32)
-
-    z_cg = np.zeros(n, dtype=np.float32)
-    if "g4_pair_z_cg" in X.columns:
-        z_cg = X["g4_pair_z_cg"].to_numpy(dtype=np.float32)
-
-    expr_percentile = np.zeros(n, dtype=np.float32)
-    if "g4_pair_expr_percentile" in X.columns:
-        expr_percentile = X["g4_pair_expr_percentile"].to_numpy(dtype=np.float32)
-
-    evidence_weight = np.ones(n, dtype=np.float32)
-    if "g1_gene_evidence_weight" in X.columns:
-        evidence_weight = X["g1_gene_evidence_weight"].to_numpy(dtype=np.float32)
-
-    # Predict interaction formulas
-    interaction_preds = []
-    for key in ["i_mod_formula", "i_expr_formula", "i_match_formula", "i_ew_formula"]:
-        formula = models.get(key)
-        if formula is None:
-            interaction_preds.append(np.zeros(n, dtype=np.float32))
-        elif key == "i_mod_formula":
-            interaction_preds.append(formula.predict(module_membership, cell_indicators))
-        elif key == "i_expr_formula":
-            interaction_preds.append(formula.predict(z_cg))
-        elif key == "i_match_formula":
-            interaction_preds.append(formula.predict(module_membership, expr_percentile))
-        elif key == "i_ew_formula":
-            interaction_preds.append(formula.predict(evidence_weight, z_cg))
-
-    # Blend interactions
-    blend = models.get("interaction_blend")
-    i_blend = blend.predict(interaction_preds) if blend is not None else np.zeros(n, dtype=np.float32)
-
-    # Cold gene transfer for n_g=0 genes
-    cold_transfer = models.get("cold_transfer")
-    if cold_transfer is not None and cold_genes:
-        warm_interaction: dict[tuple[str, str], float] = {}
-        for i in range(n):
-            if gene_ids[i] not in cold_genes:
-                warm_interaction[(cell_ids[i], gene_ids[i])] = float(i_blend[i])
-
-        i_transfer = cold_transfer.predict(cell_ids, gene_ids, cold_genes, warm_interaction)
-        cold_mask = np.array([g in cold_genes for g in gene_ids])
-        has_transfer = cold_mask & (i_transfer != 0)
-        if has_transfer.any():
-            i_blend[has_transfer] = i_transfer[has_transfer]
+    # ── IMC Bilinear Interaction ──
+    imc_interaction = models.get("imc_interaction")
+    if imc_interaction is not None:
+        # Build feature matrices from stored DataFrames
+        cell_features_df = models.get("cell_features")
+        gene_features_df = models.get("gene_features")
+        if cell_features_df is not None and gene_features_df is not None:
+            Xc = cell_features_df.reindex(cell_ids).to_numpy(dtype=np.float64)
+            Xc = np.nan_to_num(Xc, nan=0.0)
+            Xg = gene_features_df.reindex(gene_ids).to_numpy(dtype=np.float64)
+            Xg = np.nan_to_num(Xg, nan=0.0)
+            i_arr = imc_interaction.predict(Xc, Xg)
+        else:
+            i_arr = np.zeros(n, dtype=np.float32)
+    else:
+        i_arr = np.zeros(n, dtype=np.float32)
 
     # ── Final prediction ──
-    final = mu_arr + beta_arr + i_blend
+    final = mu_arr + beta_arr + i_arr
 
     if add_jitter:
         rng = np.random.RandomState(42)
@@ -1374,29 +955,36 @@ def predict_formula(
 # Formula Printout
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _print_shrinkage_summary(
+def _print_imc_summary(
     shrink_gene: "ShrinkageGeneFormula",
     shrink_cell: "ShrinkageCellFormula",
-    i_mod: ModuleInteractionFormula,
-    i_expr: ExpressionEffectFormula,
-    i_match: ModuleMatchFormula,
-    i_ew: EvidenceWeightedFormula,
-    blend: InteractionBlend,
+    imc_interaction: "IMCInteraction",
 ) -> None:
-    """Print the human-readable formula with shrinkage details."""
+    """Print the human-readable formula with IMC interaction details."""
     print("\n" + "=" * 70)
-    print("COMPLETE PREDICTION FORMULA (Empirical Bayes)")
+    print("COMPLETE PREDICTION FORMULA (Empirical Bayes + IMC)")
     print("=" * 70)
     print(f"""
 ŷ(c,g) = [w_g·x̄_g + (1-w_g)·Φ(g)] + [v_c·r̄_c + (1-v_c)·Ψ(c)]
-       + Blend[I_mod, I_expr, I_match, I_ew]
+       + x_c^T W H^T y_g
 
 SHRINKAGE PARAMETERS:
   λ_gene = {shrink_gene.lambda_:.1f}  (gene prior strength)
   λ_cell = {shrink_cell.lambda_:.1f}  (cell prior strength)
   w_g = n_g/(n_g+λ_gene)  (gene evidence weight, 0=cold → 1=warm)
   v_c = m_c/(m_c+λ_cell)  (cell evidence weight)
+
+IMC INTERACTION:
+  rank = {imc_interaction.rank}
+  Training R² = {imc_interaction.train_r2_:.4f} (on double residual)
 """)
+    top = imc_interaction.get_top_interactions(top_n=10)
+    if top:
+        print("  Top feature×feature interactions:")
+        for ci, gj, z in top[:5]:
+            print(f"    Z[{ci}, {gj}] = {z:+.4f}")
+
+    print()
     print("─" * 70)
     print("GENE PRIOR Φ(g):")
     print(shrink_gene.gene_formula_.formula_str(top_n=6))
@@ -1404,18 +992,4 @@ SHRINKAGE PARAMETERS:
     print("─" * 70)
     print("CELL PRIOR Ψ(c):")
     print(shrink_cell.cell_formula_.formula_str(top_n=6))
-    print()
-    print("─" * 70)
-    print("MODULE×INDICATOR INTERACTION I_mod:")
-    print(i_mod.formula_str())
-    print()
-    print("─" * 70)
-    print("EXPRESSION EFFECT I_expr:")
-    print(i_expr.formula_str())
-    print()
-    print("─" * 70)
-    print("INTERACTION BLEND:")
-    for name, w in blend.get_weights():
-        print(f"  α_{name} = {w:+.4f}")
-    print(f"  intercept = {blend.intercept_:.4f}")
     print("=" * 70)
