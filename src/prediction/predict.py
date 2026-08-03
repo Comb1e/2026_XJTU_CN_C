@@ -187,16 +187,12 @@ def run_prediction(config: dict[str, Any]) -> dict[str, Any]:
 
     from .formula import train_formula_models
     models = train_formula_models(y_train, train_cells, train_genes_arr,
-        
         gene_static_features=g1,
         gene_expr_profile_features=g2,
         cell_features=train_cell_feats_df,
-        
-        
-        
-        
         cold_genes=cold_genes,
         config=config,
+        expression=expression,
     )
 
     # ── Build features for test pairs ──
@@ -286,13 +282,10 @@ def run_prediction(config: dict[str, Any]) -> dict[str, Any]:
 
     test_preds = predict_formula(submission["cell_line_id"].to_numpy(),
         submission["perturbation_gene"].to_numpy(),
-        
-        
-        svd_dot=svd_dot_test,
-        
         cold_genes=cold_genes,
         models=models,
         add_jitter=True,
+        expression=expression,
     )
 
     # ── Build submission ──
@@ -314,13 +307,10 @@ def run_prediction(config: dict[str, Any]) -> dict[str, Any]:
     print("\nComputing training metrics (formula-based model)...")
     train_preds = predict_formula(train_cells,
         train_genes_arr,
-        
-        
-        
-        
         cold_genes=cold_genes,
         models=models,
         add_jitter=False,
+        expression=expression,
     )
     train_metrics_df = pd.DataFrame({
         "cell_line_id": train_cells,

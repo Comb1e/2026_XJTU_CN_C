@@ -745,6 +745,542 @@ class IMCInteraction:
             results.append((cell_names[i], gene_names[j], float(self.Z_[i, j])))
         return results
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# Structured Biological Interaction Model
+#   I(c,g) = Σ_k α_k·I_k(c)·M_k(g)                          [Module×Indicator]
+#          + Σ_k β_k·I_k(c)·M_k(g)·z_{c,g}                   [Expr-Modulated]
+#          + γ₁·z_{c,g}·w(g)                                 [Evidence-Weighted]
+#          + γ₂·p_{c,g}·w(g)                                 [Percentile-Weighted]
+#          + Σ_l Σ_k δ_{l,k}·L_l(c)·M_k(g)                   [Lineage×Module]
+#
+# All features are available for cold genes (from MitoCarta annotations,
+# Problem 1 indicators, expression data, and cell metadata).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class StructuredInteraction:
+    """Biologically-structured gene×cell interaction model.
+
+    Models the double-residual r = y − μ̂_g − β̂_c with explicit
+    biological interaction terms derived from mitochondrial pathway
+    structure and expression data.
+
+    All features are cold-gene safe — gene module membership comes from
+    MitoCarta3.0 annotations (available for all genes), cell indicators
+    from Problem 1 (available for all cells), and expression z-scores
+    from the provided expression matrix.
+    """
+
+    def __init__(
+        self,
+        alpha: float = 1.0,
+        include_lineage: bool = True,
+        random_state: int = 42,
+    ):
+        self.alpha = alpha
+        self.include_lineage = include_lineage
+        self.random_state = random_state
+
+        # Learned
+        self.model_: Ridge | None = None
+        self.scaler_: StandardScaler | None = None
+        self.feature_names_: list[str] = []
+        self.coefficients_: np.ndarray | None = None
+        self.intercept_: float = 0.0
+        self.train_r2_: float = 0.0
+
+    # ── Feature Construction ──────────────────────────────────────────────
+
+    def _build_features(
+        self,
+        cell_df: pd.DataFrame,
+        gene_df: pd.DataFrame,
+        pair_z: np.ndarray,
+        pair_pct: np.ndarray,
+    ) -> tuple[np.ndarray, list[str]]:
+        """Build structured interaction feature matrix.
+
+        Feature groups:
+          A. Expression main effects (4): z, |z|, max(0,z), min(0,z)
+          B. Expression × Module (14): z_cg · M_k(g)
+          C. Expression × Indicator (14): z_cg · I_k(c)
+          D. Module × Indicator (14): M_k(g) · I_k(c)
+          E. Evidence-weighted (2): z·w(g), |z|·w(g)
+          F. Percentile (2): pct, pct·w(g)
+          G. Lineage × Module (optional, n_lin × 14)
+
+        Total: ~50 (without lineage) or ~450 (with lineage).
+        All features are cold-gene safe.
+        """
+        N = len(cell_df)
+        n_modules = 14
+        features: dict[str, np.ndarray] = {}
+
+        # ── Extract key columns ──
+        ind_cols = [c for c in cell_df.columns if c.startswith("cell_indicator_")]
+        if not ind_cols:
+            ind_arr = np.zeros((N, 0), dtype=np.float64)
+        else:
+            ind_arr = cell_df[ind_cols].to_numpy(dtype=np.float64)
+        n_ind = ind_arr.shape[1]
+        n_interact = min(n_modules, n_ind)
+
+        mod_cols = [f"gene_module_{k:02d}" for k in range(n_modules)
+                   if f"gene_module_{k:02d}" in gene_df.columns]
+        n_modules_found = len(mod_cols)
+        mod_arr = gene_df[mod_cols].to_numpy(dtype=np.float64) if mod_cols else \
+            np.zeros((N, 0), dtype=np.float64)
+
+        ew_col = "gene_evidence_weight"
+        if ew_col in gene_df.columns:
+            ew = gene_df[ew_col].to_numpy(dtype=np.float64)
+        else:
+            ew = np.ones(N, dtype=np.float64)
+
+        z = pair_z.astype(np.float64)
+        pct = pair_pct.astype(np.float64)
+        z_abs = np.abs(z)
+        z_pos = np.maximum(z, 0)
+        z_neg = np.minimum(z, 0)
+
+        # ── A. Expression main effects (4) ──
+        features["z_cg"] = z
+        features["z_abs"] = z_abs
+        features["z_pos"] = z_pos
+        features["z_neg"] = z_neg
+
+        # ── B. Expression × Module (z_cg · M_k(g)) ──
+        for k in range(n_modules_found):
+            features[f"z_x_mod{k:02d}"] = z * mod_arr[:, k]
+
+        # ── C. Expression × Indicator (z_cg · I_k(c)) ──
+        for k in range(n_interact):
+            features[f"z_x_ind{k:02d}"] = z * ind_arr[:, k]
+
+        # ── D. Module × Indicator (M_k(g) · I_k(c)) ──
+        for k in range(n_interact):
+            features[f"mod{k:02d}_x_ind"] = mod_arr[:, k] * ind_arr[:, k]
+
+        # ── E. Evidence-weighted expression (2) ──
+        features["z_x_evidence"] = z * ew
+        features["z_abs_x_evidence"] = z_abs * ew
+
+        # ── F. Expression percentile (2) ──
+        features["expr_percentile"] = pct
+        features["pct_x_evidence"] = pct * ew
+
+        # ── G. Lineage × Module (optional) ──
+        if self.include_lineage:
+            lin_cols = [c for c in cell_df.columns
+                       if c.startswith("cell_lineage_onehot_")]
+            if lin_cols:
+                lin_arr = cell_df[lin_cols].to_numpy(dtype=np.float64)
+                lin_names = [c.replace("cell_lineage_onehot_", "")
+                           for c in lin_cols]
+                n_lin = lin_arr.shape[1]
+                for l in range(n_lin):
+                    for k in range(n_modules_found):
+                        features[f"lin_{lin_names[l]}_x_mod{k:02d}"] = (
+                            lin_arr[:, l] * mod_arr[:, k]
+                        )
+
+        # Build matrix
+        feature_names = list(features.keys())
+        X = np.column_stack([features[name] for name in feature_names])
+        return X, feature_names
+
+    # ── Fit ────────────────────────────────────────────────────────────────
+
+    def fit(
+        self,
+        cell_df: pd.DataFrame,
+        gene_df: pd.DataFrame,
+        pair_z: np.ndarray,
+        pair_pct: np.ndarray,
+        residuals: np.ndarray,
+        verbose: bool = True,
+    ) -> "StructuredInteraction":
+        """Fit structured interaction model on double residuals.
+
+        Uses RidgeCV for automatic alpha selection. All features are
+        standardized before fitting.
+        """
+        X, self.feature_names_ = self._build_features(
+            cell_df, gene_df, pair_z, pair_pct,
+        )
+        y = residuals.astype(np.float64)
+
+        # Handle NaN/Inf
+        X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+
+        self.scaler_ = StandardScaler()
+        X_scaled = self.scaler_.fit_transform(X)
+
+        ridge_cv = RidgeCV(
+            alphas=np.logspace(-2, 3, 20), store_cv_results=False,
+        )
+        ridge_cv.fit(X_scaled, y)
+
+        self.model_ = Ridge(alpha=ridge_cv.alpha_)
+        self.model_.fit(X_scaled, y)
+        self.coefficients_ = self.model_.coef_
+        self.intercept_ = float(self.model_.intercept_)
+
+        from sklearn.metrics import r2_score
+        y_pred = self.model_.predict(X_scaled)
+        self.train_r2_ = r2_score(y, y_pred)
+
+        if verbose:
+            n_nonzero = int(np.sum(np.abs(self.coefficients_) > 1e-6))
+            print(f"  StructuredInteraction: R²={self.train_r2_:.4f}, "
+                  f"{n_nonzero}/{len(self.feature_names_)} nonzero coeffs, "
+                  f"α={ridge_cv.alpha_:.2f}")
+
+        return self
+
+    # ── Predict ────────────────────────────────────────────────────────────
+
+    def predict(
+        self,
+        cell_df: pd.DataFrame,
+        gene_df: pd.DataFrame,
+        pair_z: np.ndarray,
+        pair_pct: np.ndarray,
+    ) -> np.ndarray:
+        """Predict interaction values for (cell, gene) pairs."""
+        if self.model_ is None:
+            return np.zeros(len(cell_df), dtype=np.float32)
+
+        X, _ = self._build_features(cell_df, gene_df, pair_z, pair_pct)
+        X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+        X_scaled = self.scaler_.transform(X)
+        return self.model_.predict(X_scaled).astype(np.float32)
+
+    # ── Interpretation ─────────────────────────────────────────────────────
+
+    def get_top_interactions(self, top_n: int = 20) -> list[tuple[str, float]]:
+        """Return interaction terms with largest |coefficient|."""
+        if self.coefficients_ is None:
+            return []
+        idx = np.argsort(-np.abs(self.coefficients_))[:top_n]
+        return [(self.feature_names_[i], float(self.coefficients_[i]))
+                for i in idx]
+
+    def formula_str(self, top_n: int = 15) -> str:
+        """Return human-readable formula string."""
+        top = self.get_top_interactions(top_n)
+        lines = [
+            "I(c,g) = Σ_k α_k·z_cg·M_k(g)  [Expr × Module]",
+            "       + Σ_k β_k·z_cg·I_k(c)  [Expr × Indicator]",
+            "       + Σ_k γ_k·M_k(g)·I_k(c)  [Module × Indicator]",
+            "       + δ₁·z_cg·w(g) + δ₂·|z_cg|·w(g)  [Evidence-Weighted]",
+            "       + η₁·z_cg + η₂·|z_cg| + η₃·z⁺ + η₄·z⁻  [Expr Main]",
+            "       + θ₁·p_cg + θ₂·p_cg·w(g)  [Percentile]",
+        ]
+        if self.include_lineage:
+            lines.append("       + Σ_l Σ_k ζ_{l,k}·L_l(c)·M_k(g)  [Lineage × Module]")
+        lines.extend([
+            f"  n_features = {len(self.feature_names_)}, "
+            f"Training R² = {self.train_r2_:.4f} (on double residual)",
+            "",
+            "Top interaction terms:",
+        ])
+        for name, coef in top:
+            sign = "+" if coef >= 0 else "-"
+            lines.append(f"  {sign} {abs(coef):.4f} · {name}")
+        return "\n".join(lines)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Hybrid SVD + Gene-Similarity CF Interaction
+#
+#   Warm genes: I(c,g) = Σ_k σ_k · u_k(c) · v_k(g)   [SVD, R²≈0.42]
+#   Cold genes: I(c,g) = Σ_w sim(g,w) · I_SVD(c,w)    [CF transfer]
+#
+# SVD captures rich low-rank structure for genes with training labels.
+# For cold genes, pathway-similarity-weighted transfer from warm neighbors
+# provides cell-specific predictions instead of cell-invariant Φ(g).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class HybridInteraction:
+    """SVD bilinear interaction with cold-gene pathway-CF transfer.
+
+    Warm genes: I(c,g) = Σ_k σ_k · u_k(c) · v_k(g)
+      — SVD on the double-residual matrix, capturing low-rank gene×cell
+        interaction structure with high fidelity (R²≈0.42).
+
+    Cold genes: I(c,g) = Σ_{w} sim(g,w) · I_SVD(c,w) / Σ sim(g,w)
+      — Pathway-similarity-weighted average of warm neighbors' SVD
+        interactions, providing cell-specific cold gene predictions.
+
+    The gene similarity uses MitoCarta3.0's 149-pathway annotations (PW140)
+    combined with co-expression correlation, both available for all genes.
+    """
+
+    def __init__(
+        self,
+        n_components: int = 30,
+        cf_knn: int = 30,
+        random_state: int = 42,
+    ):
+        self.n_components = n_components
+        self.cf_knn = cf_knn
+        self.random_state = random_state
+
+        # SVD results
+        self.U_: np.ndarray | None = None       # (n_cells, K) cell factors
+        self.V_: np.ndarray | None = None       # (n_warm_genes, K) gene factors
+        self.singular_values_: np.ndarray | None = None
+        self.cell_index_: pd.Index | None = None
+        self.gene_index_: pd.Index | None = None
+        self.global_residual_mean_: float = 0.0
+
+        # Cold gene transfer
+        self.cold_gene_factors_: dict[str, np.ndarray] = {}  # gene → (K,)
+        self.cold_to_warm_: dict[str, list[tuple[str, float]]] = {}
+
+        # Metadata
+        self.train_r2_: float = 0.0
+        self.n_components_used_: int = 0
+
+    # ── Fit ────────────────────────────────────────────────────────────────
+
+    def fit(
+        self,
+        residuals: np.ndarray,
+        cell_ids: np.ndarray,
+        gene_ids: np.ndarray,
+        cold_genes: set[str],
+        gene_meta: pd.DataFrame,
+        pathway_meta: pd.DataFrame,
+        expression: pd.DataFrame,
+        g1_features: pd.DataFrame,
+        g2_features: pd.DataFrame,
+        verbose: bool = True,
+    ) -> "HybridInteraction":
+        """Fit SVD on double residual, build CF transfer for cold genes.
+
+        Args:
+            residuals: (N,) double residual y − μ̂_g − β̂_c.
+            cell_ids, gene_ids: (N,) identifiers.
+            cold_genes: set of gene symbols with zero training labels.
+            gene_meta, pathway_meta: metadata DataFrames.
+            expression: N_cells × P_genes z-scored expression DataFrame.
+            g1_features, g2_features: gene-level feature DataFrames.
+        """
+        from sklearn.decomposition import TruncatedSVD
+
+        # ── Build residual matrix ──
+        cells = sorted(set(cell_ids))
+        warm_genes = sorted(set(gene_ids) - cold_genes)
+        self.cell_index_ = pd.Index(cells)
+        self.gene_index_ = pd.Index(warm_genes)
+
+        cell_to_idx = {c: i for i, c in enumerate(cells)}
+        gene_to_idx = {g: i for i, g in enumerate(warm_genes)}
+
+        n_cells = len(cells)
+        n_warm = len(warm_genes)
+        self.global_residual_mean_ = float(residuals.mean())
+
+        R = np.full((n_cells, n_warm), self.global_residual_mean_,
+                    dtype=np.float64)
+        for i in range(len(residuals)):
+            c = cell_ids[i]
+            g = gene_ids[i]
+            if c in cell_to_idx and g in gene_to_idx:
+                R[cell_to_idx[c], gene_to_idx[g]] = residuals[i]
+
+        # Center
+        R -= R.mean()
+
+        # SVD
+        k = min(self.n_components, min(n_cells, n_warm) - 1)
+        svd = TruncatedSVD(n_components=k, random_state=self.random_state)
+        self.U_ = svd.fit_transform(R).astype(np.float64)       # (n_cells, K)
+        self.V_ = svd.components_.T.astype(np.float64)           # (n_warm, K)
+        self.singular_values_ = svd.singular_values_.astype(np.float64)
+        self.n_components_used_ = k
+
+        # Training R² on observed residual entries
+        pred = np.zeros(len(residuals), dtype=np.float64)
+        for i in range(len(residuals)):
+            c = cell_ids[i]
+            g = gene_ids[i]
+            if c in cell_to_idx and g in gene_to_idx:
+                pred[i] = float(np.dot(self.U_[cell_to_idx[c]],
+                                       self.V_[gene_to_idx[g]]))
+            else:
+                pred[i] = self.global_residual_mean_
+        ss_res = np.sum((residuals - pred) ** 2)
+        ss_tot = max(np.sum((residuals - residuals.mean()) ** 2), 1e-12)
+        self.train_r2_ = 1.0 - ss_res / ss_tot
+
+        if verbose:
+            var_explained = float(np.sum(svd.explained_variance_ratio_))
+            print(f"  SVD: K={k}, R²={self.train_r2_:.4f} on observed residual, "
+                  f"cumulative variance={var_explained:.3f}")
+
+        # ── Build cold gene CF transfer ──
+        if cold_genes:
+            self._build_cold_transfer(
+                cold_genes, warm_genes, cells, cell_to_idx, gene_to_idx,
+                gene_meta, pathway_meta, expression, R,
+                g1_features, g2_features, verbose,
+            )
+
+        return self
+
+    def _build_cold_transfer(
+        self,
+        cold_genes: set[str],
+        warm_genes: list[str],
+        cells: list[str],
+        cell_to_idx: dict[str, int],
+        gene_to_idx: dict[str, int],
+        gene_meta: pd.DataFrame,
+        pathway_meta: pd.DataFrame,
+        expression: pd.DataFrame,
+        R: np.ndarray,
+        g1_features: pd.DataFrame,
+        g2_features: pd.DataFrame,
+        verbose: bool,
+    ) -> None:
+        """Build pathway + coexpression similarity KNN for cold→warm transfer."""
+        from sklearn.neighbors import NearestNeighbors
+
+        # Build PW140 gene features
+        from .baselines import build_pw140_membership_features
+        pw140 = build_pw140_membership_features(gene_meta, pathway_meta)
+
+        # Combine pathway + expression profile + coexpression features
+        gene_feats = g1_features.join(g2_features, how="inner")
+        pw140_aligned = pw140.reindex(gene_feats.index).fillna(0.0)
+
+        # Build feature matrix for warm genes
+        warm_list = sorted(set(warm_genes) & set(gene_feats.index)
+                          & set(pw140_aligned.index))
+        cold_list = sorted(cold_genes & set(gene_feats.index)
+                          & set(pw140_aligned.index))
+
+        if not warm_list or not cold_list:
+            if verbose:
+                print(f"  CF: insufficient common genes for transfer "
+                      f"(warm={len(warm_list)}, cold={len(cold_list)})")
+            return
+
+        # Feature matrix: concatenate PW140 + G1 + G2
+        X_warm_pw = pw140_aligned.reindex(warm_list).fillna(0).to_numpy(dtype=np.float64)
+        X_warm_gf = gene_feats.reindex(warm_list).fillna(0).to_numpy(dtype=np.float64)
+        X_warm = np.column_stack([X_warm_pw, X_warm_gf])
+
+        X_cold_pw = pw140_aligned.reindex(cold_list).fillna(0).to_numpy(dtype=np.float64)
+        X_cold_gf = gene_feats.reindex(cold_list).fillna(0).to_numpy(dtype=np.float64)
+        X_cold = np.column_stack([X_cold_pw, X_cold_gf])
+
+        # KNN on combined features
+        k_eff = min(self.cf_knn, len(warm_list))
+        nbrs = NearestNeighbors(n_neighbors=k_eff, metric="cosine")
+        nbrs.fit(X_warm)
+        distances, indices = nbrs.kneighbors(X_cold)
+
+        # Build cold→warm similarity map and predict cold gene factors
+        for i, cold_g in enumerate(cold_list):
+            sims = []
+            for j in range(k_eff):
+                w_g = warm_list[indices[i, j]]
+                sim = max(1.0 - distances[i, j], 1e-6)
+                sims.append((w_g, sim))
+            total = sum(s for _, s in sims)
+            if total > 0:
+                self.cold_to_warm_[cold_g] = [(g, s / total) for g, s in sims]
+
+            # Predict cold gene's V factor as weighted avg of warm V factors
+            v_cold = np.zeros(self.n_components_used_, dtype=np.float64)
+            weight_sum = 0.0
+            for w_g, sim in sims:
+                if w_g in gene_to_idx:
+                    v_cold += sim * self.V_[gene_to_idx[w_g]]
+                    weight_sum += sim
+            if weight_sum > 0:
+                v_cold /= weight_sum
+            self.cold_gene_factors_[cold_g] = v_cold
+
+        if verbose:
+            n_with_cf = len(self.cold_to_warm_)
+            print(f"  CF: {n_with_cf}/{len(cold_list)} cold genes have warm "
+                  f"neighbors (K={k_eff})")
+
+    # ── Predict ────────────────────────────────────────────────────────────
+
+    def predict(
+        self,
+        cell_ids: np.ndarray,
+        gene_ids: np.ndarray,
+    ) -> np.ndarray:
+        """Predict SVD interaction values for (cell, gene) pairs.
+
+        Warm genes: direct SVD dot product U_c · V_g.
+        Cold genes: dot product U_c · V̂_g (predicted from warm neighbors).
+        """
+        n = len(cell_ids)
+        pred = np.full(n, self.global_residual_mean_, dtype=np.float32)
+
+        if self.U_ is None or self.V_ is None:
+            return pred
+
+        cell_to_idx = {c: i for i, c in enumerate(self.cell_index_)}
+        gene_to_idx = {g: i for i, g in enumerate(self.gene_index_)}
+
+        for i in range(n):
+            c = cell_ids[i]
+            g = gene_ids[i]
+            ci = cell_to_idx.get(c)
+            if ci is None:
+                continue
+
+            if g in gene_to_idx:
+                # Warm gene: direct SVD
+                gi = gene_to_idx[g]
+                pred[i] = float(np.dot(self.U_[ci], self.V_[gi]))
+            elif g in self.cold_gene_factors_:
+                # Cold gene: predicted V factor
+                pred[i] = float(np.dot(self.U_[ci],
+                                       self.cold_gene_factors_[g]))
+
+        return pred
+
+    # ── Interpretation ─────────────────────────────────────────────────────
+
+    def formula_str(self, top_n: int = 10) -> str:
+        """Return human-readable formula string."""
+        lines = [
+            "I(c,g) = Σ_k σ_k · u_k(c) · v_k(g)",
+            f"  Components: {self.n_components_used_}",
+            f"  Training R² = {self.train_r2_:.4f} (on double residual)",
+        ]
+        if self.singular_values_ is not None:
+            sv = self.singular_values_
+            var_exp = sv ** 2 / max(np.sum(sv ** 2), 1e-12)
+            lines.append(f"  Top singular values: "
+                        f"{', '.join(f'{sv[i]:.4f}' for i in range(min(5, len(sv))))}")
+            lines.append(f"  Variance explained: "
+                        f"{', '.join(f'{var_exp[i]:.3f}' for i in range(min(5, len(var_exp))))}")
+        if self.cold_to_warm_:
+            lines.append(f"  Cold genes with CF transfer: {len(self.cold_to_warm_)}")
+        return "\n".join(lines)
+
+    def get_top_gene_loadings(self, component: int = 0, top_n: int = 20
+                             ) -> list[tuple[str, float]]:
+        """Return genes with largest |loading| in a given SVD component."""
+        if self.V_ is None or component >= self.V_.shape[1]:
+            return []
+        idx = np.argsort(-np.abs(self.V_[:, component]))[:top_n]
+        return [(self.gene_index_[i], float(self.V_[i, component]))
+                for i in idx]
+
+
 # Full Formula Training Pipeline (Empirical Bayes)
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -757,14 +1293,15 @@ def train_formula_models(
     cell_features: pd.DataFrame,
     cold_genes: set[str] | None = None,
     config: dict[str, Any] | None = None,
+    expression: pd.DataFrame | None = None,
 ) -> dict[str, Any]:
     """Train formula-based models with empirical Bayes smooth transition.
 
     Sequential fitting (NO hard warm/cold distinction):
       1. ShrinkageGeneFormula → μ̂_g = w_g·x̄_g + (1-w_g)·Φ(g)
       2. ShrinkageCellFormula → β̂_c = v_c·r̄_c + (1-v_c)·Ψ(c)
-      3. SVDInteraction → I(c,g) = Σ_k σ_k · u_k(c) · v_k(g)
-      4. ColdGeneTransfer for genes with n_g=0
+      3. StructuredInteraction → I(c,g) with biological interaction terms
+      4. (Optional) IMC residual on remaining signal
 
     Args:
         y: label array.
@@ -774,9 +1311,11 @@ def train_formula_models(
         cell_features: G3 features indexed by cell.
         cold_genes: set of cold gene symbols (n_g=0).
         config: configuration dict.
+        expression: N_cells × P_genes expression DataFrame (z-scored).
+                    Required for StructuredInteraction pair features.
 
     Returns:
-        dict with shrinkage models, SVD interaction, and metadata.
+        dict with shrinkage models, interaction models, and metadata.
     """
     if config is None:
         config = {}
@@ -837,52 +1376,91 @@ def train_formula_models(
     print(f"    σ²(r₂)          = {np.var(r2):.6f} "
           f"({100 * np.var(r2) / max(np.var(y), 1e-12):.1f}% remaining)")
 
-    # ── Build feature matrices for IMC interaction ──
-    # X_cell: (N, f_c) from cell_features, indexed by cell_ids
-    # X_gene: (N, f_g) from gene_feat_df, indexed by gene_ids
-    X_cell_arr = cell_features.reindex(cell_ids).to_numpy(dtype=np.float64)
-    X_cell_arr = np.nan_to_num(X_cell_arr, nan=0.0)
-    cell_feature_names = list(cell_features.columns)
+    # ── Build feature matrices for interaction ──
+    cell_feat_df_aligned = cell_features.reindex(
+        pd.Index(cell_ids)).fillna(0.0)
+    gene_feat_df_aligned = gene_feat_df.reindex(
+        pd.Index(gene_ids)).fillna(0.0)
 
-    X_gene_arr = gene_feat_df.reindex(gene_ids).to_numpy(dtype=np.float64)
-    X_gene_arr = np.nan_to_num(X_gene_arr, nan=0.0)
-    gene_feature_names = list(gene_feat_df.columns)
+    # ── Step 4: Hybrid SVD + Gene-Similarity CF Interaction ──
+    hybrid_cfg = fm_cfg.get("hybrid_interaction", {})
+    print(f"\n[Step 4] Hybrid SVD + Gene-Similarity CF Interaction")
+    print(f"  I(c,g) = Σ_k σ_k · u_k(c) · v_k(g)  [SVD, warm genes]")
+    print(f"  I(c,g) = Σ_w sim(g,w) · I_SVD(c,w)  [CF, cold genes]")
 
-    # ── Step 4: IMC Bilinear Interaction ──
-    print(f"\n[Step 4] IMC Bilinear Interaction (rank={fm_cfg.get('imc', {}).get('rank', 10)})")
-    print("  r̂(c,g) = x_c^T W H^T y_g")
-    imc_cfg = fm_cfg.get("imc", {})
-    imc_interaction = IMCInteraction(
-        rank=imc_cfg.get("rank", 10),
-        lambda_w=imc_cfg.get("lambda_w", 1.0),
-        lambda_h=imc_cfg.get("lambda_h", 1.0),
-        max_iter=imc_cfg.get("max_iter", 30),
+    # Load metadata for CF
+    from pathlib import Path
+    from ..utils import load_config as _load_config
+    data_dir = Path(config.get("paths", {}).get("data_dir", "数据文件"))
+    gene_meta = pd.read_csv(data_dir / "metadata" / "gene_metadata.csv")
+    pathway_meta = pd.read_csv(data_dir / "metadata" / "pathway_metadata.csv")
+
+    hybrid_interaction = HybridInteraction(
+        n_components=hybrid_cfg.get("n_components", 30),
+        cf_knn=hybrid_cfg.get("cf_knn", 30),
+        random_state=42,
     )
-    imc_interaction.fit(
-        X_cell_arr, X_gene_arr, r2,
-        cell_feature_names=cell_feature_names,
-        gene_feature_names=gene_feature_names,
+    hybrid_interaction.fit(
+        r2, cell_ids, gene_ids, cold_genes,
+        gene_meta, pathway_meta,
+        expression if expression is not None else pd.DataFrame(),
+        gene_static_features, gene_expr_profile_features,
     )
+
+    # ── Step 5: Gene-Similarity CF for cold genes ──
+    cf_cold_predictions: dict[tuple, float] = {}
+    cf_weight = hybrid_cfg.get("cf_weight", 0.5)
+    if cold_genes:
+        from .baselines import build_gene_similarity_cf
+        labels_df_for_cf = pd.DataFrame({
+            "cell_line_id": cell_ids,
+            "perturbation_gene": gene_ids,
+            "label": y,
+        })
+        cf_cold_predictions = build_gene_similarity_cf(
+            labels_df_for_cf, gene_meta, pathway_meta,
+            expression if expression is not None else pd.DataFrame(),
+            cold_genes, k=hybrid_cfg.get("cf_knn", 30),
+        )
+        print(f"  CF: {len(cf_cold_predictions):,} cold (cell,gene) pairs with "
+              f"predictions")
 
     # ── Compute full predictions ──
     mu_arr = shrink_gene.predict_batch(list(gene_ids))
     beta_arr = shrink_cell.predict_batch(list(cell_ids))
-    i_arr = imc_interaction.predict(X_cell_arr, X_gene_arr)
+    i_arr = hybrid_interaction.predict(cell_ids, gene_ids)
     full_preds = mu_arr + beta_arr + i_arr
 
+    # Blend CF predictions for cold genes
+    if cf_cold_predictions:
+        cf_blend_count = 0
+        for i in range(n):
+            key = (cell_ids[i], gene_ids[i])
+            if key in cf_cold_predictions and gene_ids[i] in cold_genes:
+                cf_val = cf_cold_predictions[key]
+                # Blend: (1-w)·formula + w·CF for cold genes
+                full_preds[i] = (1.0 - cf_weight) * full_preds[i] \
+                    + cf_weight * cf_val
+                cf_blend_count += 1
+        print(f"  CF blended for {cf_blend_count:,} cold-gene predictions "
+              f"(weight={cf_weight:.2f})")
+
     # ── Print formula summary ──
-    _print_imc_summary(shrink_gene, shrink_cell, imc_interaction)
+    _print_hybrid_summary(shrink_gene, shrink_cell, hybrid_interaction,
+                          len(cf_cold_predictions))
 
     return {
         "shrink_gene": shrink_gene,
         "shrink_cell": shrink_cell,
-        "imc_interaction": imc_interaction,
+        "hybrid_interaction": hybrid_interaction,
         "cell_features": cell_features,
         "gene_features": gene_feat_df,
         "mu_g": shrink_gene.mu_g_,
         "beta_c": shrink_cell.beta_c_,
         "cold_genes": cold_genes,
         "full_preds": full_preds,
+        "cf_cold_predictions": cf_cold_predictions,
+        "cf_weight": cf_weight,
     }
 
 
@@ -892,14 +1470,15 @@ def predict_formula(
     cold_genes: set[str] | None = None,
     models: dict[str, Any] | None = None,
     add_jitter: bool = True,
+    expression: pd.DataFrame | None = None,
 ) -> np.ndarray:
     """Generate predictions using trained formula models.
 
     Unified formula for ALL genes (no hard warm/cold distinction):
-      ŷ(c,g) = μ̂_g + β̂_c + x_c^T W H^T y_g
+      ŷ(c,g) = μ̂_g + β̂_c + I_structured(c,g) [+ I_imc_residual(c,g)]
 
     where μ̂_g and β̂_c come from the empirical Bayes shrinkage models,
-    and the IMC bilinear interaction uses cell/gene features directly.
+    and the structured interaction uses biologically meaningful features.
     """
     if models is None:
         return np.zeros(len(cell_ids), dtype=np.float32)
@@ -924,25 +1503,59 @@ def predict_formula(
         beta_c = models.get("beta_c", {})
         beta_arr = np.array([beta_c.get(c, 0.0) for c in cell_ids], dtype=np.float32)
 
-    # ── IMC Bilinear Interaction ──
-    imc_interaction = models.get("imc_interaction")
-    if imc_interaction is not None:
-        # Build feature matrices from stored DataFrames
-        cell_features_df = models.get("cell_features")
-        gene_features_df = models.get("gene_features")
-        if cell_features_df is not None and gene_features_df is not None:
-            Xc = cell_features_df.reindex(cell_ids).to_numpy(dtype=np.float64)
-            Xc = np.nan_to_num(Xc, nan=0.0)
-            Xg = gene_features_df.reindex(gene_ids).to_numpy(dtype=np.float64)
-            Xg = np.nan_to_num(Xg, nan=0.0)
-            i_arr = imc_interaction.predict(Xc, Xg)
-        else:
-            i_arr = np.zeros(n, dtype=np.float32)
+    # ── Hybrid SVD + CF Interaction ──
+    hybrid_interaction = models.get("hybrid_interaction")
+    if hybrid_interaction is not None:
+        i_arr = hybrid_interaction.predict(cell_ids, gene_ids)
     else:
+        # Fallback: try legacy interaction models
+        si_interaction = models.get("si_interaction")
+        imc_interaction = models.get("imc_interaction")
         i_arr = np.zeros(n, dtype=np.float32)
+        if si_interaction is not None:
+            cell_features_df = models.get("cell_features")
+            gene_features_df = models.get("gene_features")
+            if cell_features_df is not None and gene_features_df is not None \
+               and expression is not None:
+                pair_z, pair_pct = _compute_pair_expr_features(
+                    expression, cell_ids, gene_ids,
+                )
+                cell_df = pd.DataFrame(
+                    cell_features_df.reindex(cell_ids).to_numpy(dtype=np.float64),
+                    columns=cell_features_df.columns,
+                ).fillna(0.0)
+                gene_df = pd.DataFrame(
+                    gene_features_df.reindex(gene_ids).to_numpy(dtype=np.float64),
+                    columns=gene_features_df.columns,
+                ).fillna(0.0)
+                i_arr += si_interaction.predict(cell_df, gene_df, pair_z, pair_pct)
+        if imc_interaction is not None:
+            cell_features_df = models.get("cell_features")
+            gene_features_df = models.get("gene_features")
+            if cell_features_df is not None and gene_features_df is not None:
+                Xc = cell_features_df.reindex(cell_ids).to_numpy(dtype=np.float64)
+                Xc = np.nan_to_num(Xc, nan=0.0)
+                Xg = gene_features_df.reindex(gene_ids).to_numpy(dtype=np.float64)
+                Xg = np.nan_to_num(Xg, nan=0.0)
+                i_arr += imc_interaction.predict(Xc, Xg)
 
     # ── Final prediction ──
     final = mu_arr + beta_arr + i_arr
+
+    # ── Gene-Similarity CF blending for cold genes ──
+    cf_cold_predictions = models.get("cf_cold_predictions", {})
+    if cf_cold_predictions:
+        cf_weight = models.get("cf_weight", 0.5)
+        n_blended = 0
+        for i in range(n):
+            key = (cell_ids[i], gene_ids[i])
+            if key in cf_cold_predictions and gene_ids[i] in cold_genes:
+                cf_val = cf_cold_predictions[key]
+                final[i] = (1.0 - cf_weight) * final[i] + cf_weight * cf_val
+                n_blended += 1
+        if n_blended > 0:
+            print(f"  CF blended for {n_blended:,} cold-gene predictions "
+                  f"(weight={cf_weight:.2f})")
 
     if add_jitter:
         rng = np.random.RandomState(42)
@@ -952,38 +1565,89 @@ def predict_formula(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Helpers
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def _compute_pair_expr_features(
+    expression: pd.DataFrame,
+    cell_ids: np.ndarray,
+    gene_ids: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Compute z_cg and expression percentile for (cell, gene) pairs.
+
+    Args:
+        expression: N_cells × P_genes z-scored expression DataFrame.
+        cell_ids: (N,) cell identifiers.
+        gene_ids: (N,) gene identifiers.
+
+    Returns:
+        (z_cg, expr_percentile): both (N,) float64 arrays.
+    """
+    cell_to_idx = {c: i for i, c in enumerate(expression.index)}
+    gene_list = expression.columns.tolist()
+    gene_to_idx = {g: i for i, g in enumerate(gene_list)}
+    expr_arr = expression.to_numpy(dtype=np.float64)
+
+    n = len(cell_ids)
+    z_cg = np.zeros(n, dtype=np.float64)
+    expr_pct = np.zeros(n, dtype=np.float64)
+
+    # Process unique cells for efficiency
+    for cell in np.unique(cell_ids):
+        ci = cell_to_idx.get(cell)
+        if ci is None:
+            continue
+        mask = cell_ids == cell
+        cell_genes = gene_ids[mask]
+        g_indices = np.array([gene_to_idx.get(g, -1) for g in cell_genes])
+
+        valid = g_indices >= 0
+        if not valid.any():
+            continue
+
+        cell_expr = expr_arr[ci]
+        z_cg[mask] = np.where(valid, cell_expr[g_indices], 0.0)
+        # Percentile: fraction of genes with lower expression in this cell
+        z_vals = cell_expr[g_indices[valid]]
+        expr_pct[mask] = np.where(
+            valid,
+            (cell_expr[np.newaxis, :] < z_vals[:, np.newaxis]).mean(axis=1),
+            0.5,
+        )
+
+    return z_cg, expr_pct
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # Formula Printout
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _print_imc_summary(
+def _print_hybrid_summary(
     shrink_gene: "ShrinkageGeneFormula",
     shrink_cell: "ShrinkageCellFormula",
-    imc_interaction: "IMCInteraction",
+    hybrid: "HybridInteraction",
+    n_cf_pairs: int = 0,
 ) -> None:
-    """Print the human-readable formula with IMC interaction details."""
+    """Print the human-readable formula with hybrid SVD+CF details."""
     print("\n" + "=" * 70)
-    print("COMPLETE PREDICTION FORMULA (Empirical Bayes + IMC)")
+    print("COMPLETE PREDICTION FORMULA (Empirical Bayes + Hybrid SVD/CF)")
     print("=" * 70)
     print(f"""
 ŷ(c,g) = [w_g·x̄_g + (1-w_g)·Φ(g)] + [v_c·r̄_c + (1-v_c)·Ψ(c)]
-       + x_c^T W H^T y_g
+       + I(c,g)
 
 SHRINKAGE PARAMETERS:
   λ_gene = {shrink_gene.lambda_:.1f}  (gene prior strength)
   λ_cell = {shrink_cell.lambda_:.1f}  (cell prior strength)
-  w_g = n_g/(n_g+λ_gene)  (gene evidence weight, 0=cold → 1=warm)
-  v_c = m_c/(m_c+λ_cell)  (cell evidence weight)
 
-IMC INTERACTION:
-  rank = {imc_interaction.rank}
-  Training R² = {imc_interaction.train_r2_:.4f} (on double residual)
+HYBRID INTERACTION:
+  Warm genes: I(c,g) = Σ_k σ_k · u_k(c) · v_k(g)  [SVD, {hybrid.n_components_used_} components]
+  Cold genes: I(c,g) = Σ_w sim(g,w) · I_SVD(c,w)  [CF transfer]
+  Training R² = {hybrid.train_r2_:.4f} (on double residual)
+  Cold genes with CF neighbors: {len(hybrid.cold_to_warm_)}
+  Cold gene CF label predictions: {n_cf_pairs:,} pairs
 """)
-    top = imc_interaction.get_top_interactions(top_n=10)
-    if top:
-        print("  Top feature×feature interactions:")
-        for ci, gj, z in top[:5]:
-            print(f"    Z[{ci}, {gj}] = {z:+.4f}")
-
     print()
     print("─" * 70)
     print("GENE PRIOR Φ(g):")

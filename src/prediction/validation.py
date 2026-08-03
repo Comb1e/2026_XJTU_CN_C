@@ -227,26 +227,20 @@ def validate_group_by_gene(
         # Train formula models
         from .formula import train_formula_models, predict_formula
         wb_models = train_formula_models(y_train, train_cell_arr, train_gene_arr,
-            
             gene_static_features=g1,
             gene_expr_profile_features=g2,
             cell_features=train_cell_feats,
-            
-            
-            
-            
             cold_genes=val_cold if val_cold else set(),
             config=config,
+            expression=expression,
         )
 
         # Predict
         preds_val = predict_formula(val_cell_arr, val_gene_arr,
-             
-            
-            
             cold_genes=val_cold if val_cold else set(),
             models=wb_models,
             add_jitter=True,
+            expression=expression,
         )
 
         # Compute metrics
@@ -406,26 +400,20 @@ def validate_group_by_cell(
         # Train formula models
         from .formula import train_formula_models, predict_formula
         wb_models = train_formula_models(y_train, train_cell_arr, train_gene_arr,
-            
             gene_static_features=g1,
             gene_expr_profile_features=g2,
             cell_features=train_cell_feats,
-            
-            
-            
-            
             cold_genes=val_cold_genes,
             config=config,
+            expression=expression,
         )
 
         # Predict
         preds_val = predict_formula(val_cell_arr, val_gene_arr,
-             
-            
-            
             cold_genes=val_cold_genes,
             models=wb_models,
             add_jitter=True,
+            expression=expression,
         )
 
         df_val = pd.DataFrame({

@@ -176,14 +176,12 @@ def run_cold(labels, config, data_dir, output_dir, args):
     fm_models = train_formula_models(y_train,
         train_labels["cell_line_id"].to_numpy(),
         train_labels["perturbation_gene"].to_numpy(),
-        
         gene_static_features=g1,
         gene_expr_profile_features=g2,
         cell_features=train_cell_feats,
-        
-        
         cold_genes=cold_genes,
         config=config,
+        expression=expression,
     )
 
     # Val features
@@ -197,11 +195,10 @@ def run_cold(labels, config, data_dir, output_dir, args):
     from src.prediction.formula import predict_formula as _predict_formula
     fm_preds = _predict_formula(val_labels["cell_line_id"].to_numpy(),
         val_labels["perturbation_gene"].to_numpy(),
-        
-        
         cold_genes=cold_genes,
         models=fm_models,
         add_jitter=True,
+        expression=expression,
     )
 
     # Score
@@ -319,11 +316,10 @@ def run_warm(labels, config, data_dir, output_dir, args):
     from src.prediction.formula import predict_formula as _predict_formula
     fm_preds = _predict_formula(val_labels["cell_line_id"].to_numpy(),
         val_labels["perturbation_gene"].to_numpy(),
-        
-        
         cold_genes=cold_genes,
         models=fm_models,
         add_jitter=True,
+        expression=expression,
     )
 
     # Score per regime
@@ -474,11 +470,10 @@ def run_real(labels, config, data_dir, output_dir, args):
     from src.prediction.formula import predict_formula as _predict_formula
     fm_preds = _predict_formula(val_labels["cell_line_id"].to_numpy(),
         val_labels["perturbation_gene"].to_numpy(),
-        
-        
         cold_genes=cold_genes,
         models=fm_models,
         add_jitter=True,
+        expression=expression,
     )
 
     # Score — overall and per-regime

@@ -3,7 +3,8 @@
 Tests cover:
   - GeneEssentialityFormula: fit, predict, feature importance
   - CellVulnerabilityFormula: fit, predict, feature importance
-  - SVDInteraction: SVD bilinear interaction, cold gene prediction, JS shrinkage
+  - IMCInteraction: ALS bilinear interaction, cold gene prediction
+  - StructuredInteraction: biological interaction terms, cold-safe
   - Pairwise ranking (LogisticRegression Bradley-Terry)
   - Calibration utilities (Ridge, quantile)
 """
@@ -22,6 +23,8 @@ from src.prediction.formula import (
     GeneEssentialityFormula,
     CellVulnerabilityFormula,
     IMCInteraction,
+    StructuredInteraction,
+    HybridInteraction,
 )
 from src.prediction.models import (
     sample_pairwise_pairs,
@@ -248,6 +251,347 @@ class TestIMCInteraction:
         # Should converge before max_iter
         assert imc.iterations_ <= 30
         assert imc.train_r2_ > 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Structured Biological Interaction
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestStructuredInteraction:
+    """Tests for StructuredInteraction — biological interaction terms."""
+
+    @staticmethod
+    def _make_toy_data(n=500, n_modules=14, n_lin=5, seed=42):
+        """Build synthetic data with known module×indicator interaction."""
+        rng = np.random.RandomState(seed)
+        f_c = n_modules + 2 * n_modules + n_lin  # indicators + lineage
+        f_g = n_modules + 1  # modules + evidence_weight
+
+        # Cell features
+        ind_arr = rng.randn(n, n_modules) * 0.5
+        cell_cols = [f"cell_indicator_{i}" for i in range(n_modules)]
+        # Add extra cell columns
+        cell_cols += [f"cell_extra_{i}" for i in range(10)]
+        # Lineage one-hot
+        lin_labels = rng.randint(0, n_lin, n)
+        lin_arr = np.zeros((n, n_lin))
+        for i, l in enumerate(lin_labels):
+            lin_arr[i, l] = 1.0
+        lin_cols = [f"cell_lineage_onehot_LIN_{l}" for l in range(n_lin)]
+        cell_data = np.column_stack([ind_arr,
+                                     rng.randn(n, 10),
+                                     lin_arr])
+        cell_df = pd.DataFrame(cell_data,
+                               columns=cell_cols + lin_cols)
+
+        # Gene features
+        mod_membership = rng.choice([0, 1], (n, n_modules), p=[0.7, 0.3])
+        mod_membership = mod_membership.astype(np.float64)
+        mod_cols = [f"gene_module_{k:02d}" for k in range(n_modules)]
+        ew = 0.8 + 0.4 * rng.rand(n)
+        gene_data = np.column_stack([mod_membership, ew])
+        # Add extra gene columns
+        gene_data = np.column_stack([gene_data, rng.randn(n, 5)])
+        gene_df = pd.DataFrame(gene_data,
+                               columns=mod_cols + ["gene_evidence_weight"]
+                               + [f"gene_extra_{i}" for i in range(5)])
+
+        # Pair features
+        pair_z = rng.randn(n)
+        pair_pct = rng.rand(n)
+
+        # True interaction signal: module×indicator + z×evidence
+        true_alpha = rng.randn(n_modules) * 0.3
+        true_gamma = 0.5
+        y = np.zeros(n)
+        for k in range(n_modules):
+            y += true_alpha[k] * mod_membership[:, k] * ind_arr[:, k]
+        y += true_gamma * pair_z * ew
+        y += 0.05 * rng.randn(n)  # noise
+
+        return cell_df, gene_df, pair_z, pair_pct, y
+
+    def test_fit_and_predict(self):
+        """StructuredInteraction should capture biological interaction signal."""
+        cell_df, gene_df, pair_z, pair_pct, y = self._make_toy_data(500)
+
+        si = StructuredInteraction(include_lineage=True)
+        si.fit(cell_df, gene_df, pair_z, pair_pct, y, verbose=False)
+
+        pred = si.predict(cell_df, gene_df, pair_z, pair_pct)
+        assert len(pred) == 500
+        assert pred.dtype == np.float32
+        r2 = 1.0 - np.sum((y - pred) ** 2) / max(np.sum((y - np.mean(y)) ** 2), 1e-12)
+        # Should capture substantial variance from structured signal
+        assert r2 > 0.3, f"StructuredInteraction R²={r2:.4f} too low"
+
+    def test_cold_gene_safety(self):
+        """All features must be available for cold genes (no per-gene labels)."""
+        cell_df, gene_df, pair_z, pair_pct, y = self._make_toy_data(300)
+
+        si = StructuredInteraction(include_lineage=True)
+        si.fit(cell_df, gene_df, pair_z, pair_pct, y, verbose=False)
+
+        # Predict for completely new genes (same feature space)
+        _, gene_df_new, pair_z_new, pair_pct_new, _ = self._make_toy_data(
+            100, seed=99,
+        )
+        pred = si.predict(cell_df.iloc[:100], gene_df_new,
+                         pair_z_new, pair_pct_new)
+        assert len(pred) == 100
+        assert not np.allclose(pred, 0), "Cold gene predictions should be non-zero"
+        # Predictions should have variance (not all same value)
+        assert pred.std() > 1e-6, "Cold gene predictions have no variance"
+
+    def test_feature_names(self):
+        """Should generate named features with all key groups."""
+        cell_df, gene_df, pair_z, pair_pct, y = self._make_toy_data(200)
+
+        si = StructuredInteraction(include_lineage=True)
+        si.fit(cell_df, gene_df, pair_z, pair_pct, y, verbose=False)
+
+        assert len(si.feature_names_) > 0
+        names_str = " ".join(si.feature_names_)
+        # Key feature groups should be present
+        assert "z_cg" in names_str
+        assert "z_abs" in names_str
+        assert "z_x_evidence" in names_str
+        assert "expr_percentile" in names_str
+        assert any("z_x_mod" in n for n in si.feature_names_)
+        assert any("z_x_ind" in n for n in si.feature_names_)
+        assert any("mod" in n and "x_ind" in n for n in si.feature_names_)
+
+    def test_top_interactions(self):
+        """get_top_interactions should return named coefficients."""
+        cell_df, gene_df, pair_z, pair_pct, y = self._make_toy_data(300)
+
+        si = StructuredInteraction(include_lineage=True)
+        si.fit(cell_df, gene_df, pair_z, pair_pct, y, verbose=False)
+
+        top = si.get_top_interactions(top_n=10)
+        assert len(top) == 10
+        assert len(top[0]) == 2  # (name, coefficient)
+        assert isinstance(top[0][1], float)
+
+    def test_formula_str(self):
+        """Formula string should describe the structure."""
+        cell_df, gene_df, pair_z, pair_pct, y = self._make_toy_data(200)
+
+        si = StructuredInteraction(include_lineage=True)
+        si.fit(cell_df, gene_df, pair_z, pair_pct, y, verbose=False)
+
+        s = si.formula_str()
+        assert "I(c,g)" in s
+        assert "Module × Indicator" in s
+        assert "R²" in s
+
+    def test_no_lineage_mode(self):
+        """Should work with include_lineage=False."""
+        cell_df, gene_df, pair_z, pair_pct, y = self._make_toy_data(200)
+
+        si = StructuredInteraction(include_lineage=False)
+        si.fit(cell_df, gene_df, pair_z, pair_pct, y, verbose=False)
+
+        pred = si.predict(cell_df, gene_df, pair_z, pair_pct)
+        assert len(pred) == 200
+        # Should have fewer features without lineage terms
+        assert not any("lin_" in n for n in si.feature_names_)
+
+    def test_missing_features_handling(self):
+        """Should handle missing cell/gene columns gracefully."""
+        rng = np.random.RandomState(42)
+        n = 100
+
+        # Minimal DataFrames with only required columns
+        cell_df = pd.DataFrame({
+            "cell_indicator_0": rng.randn(n),
+            "cell_indicator_1": rng.randn(n),
+        })
+        gene_df = pd.DataFrame({
+            "gene_module_00": rng.choice([0, 1], n).astype(np.float64),
+            "gene_module_01": rng.choice([0, 1], n).astype(np.float64),
+            "gene_evidence_weight": np.ones(n),
+        })
+        pair_z = rng.randn(n)
+        pair_pct = rng.rand(n)
+        y = 0.3 * cell_df["cell_indicator_0"] * gene_df["gene_module_00"] \
+            + 0.1 * rng.randn(n)
+
+        si = StructuredInteraction(include_lineage=False)
+        si.fit(cell_df, gene_df, pair_z, pair_pct, y, verbose=False)
+
+        pred = si.predict(cell_df, gene_df, pair_z, pair_pct)
+        assert len(pred) == n
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Hybrid SVD + Gene-Similarity CF Interaction
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class TestHybridInteraction:
+    """Tests for HybridInteraction — SVD + pathway-CF cold gene transfer."""
+
+    def test_fit_and_predict_warm(self):
+        """SVD should capture interaction signal on warm genes."""
+        rng = np.random.RandomState(42)
+        n_cells, n_genes = 50, 40
+        n_pairs = n_cells * n_genes
+
+        # Build residual matrix with low-rank structure
+        U_true = rng.randn(n_cells, 3)
+        V_true = rng.randn(n_genes, 3)
+        R = U_true @ V_true.T + 0.05 * rng.randn(n_cells, n_genes)
+
+        cell_ids = np.array([f"C{i}" for i in range(n_cells) for _ in range(n_genes)])
+        gene_ids = np.array([f"G{j}" for _ in range(n_cells) for j in range(n_genes)])
+        residuals = R.flatten()
+
+        # Mock gene metadata for CF
+        gene_meta = pd.DataFrame({
+            "gene_symbol": [f"G{j}" for j in range(n_genes)],
+            "pathways": ["OXPHOS > CI" if j < 10 else "Ribosome > Mito"
+                        for j in range(n_genes)],
+            "sub_mito_location": ["MIM"] * n_genes,
+        })
+        pathway_meta = pd.DataFrame({
+            "pathway_name": ["CI_subunits", "Mito_ribosome"],
+            "description": ["CI", "Mito ribosome"],
+            "n_genes": [10, 10],
+        })
+        expr = pd.DataFrame(
+            rng.randn(n_cells, n_genes),
+            index=[f"C{i}" for i in range(n_cells)],
+            columns=[f"G{j}" for j in range(n_genes)],
+        )
+
+        # G1 + G2 gene features
+        g1 = pd.DataFrame({
+            f"feat_{k}": rng.randn(n_genes)
+            for k in range(14)
+        }, index=[f"G{j}" for j in range(n_genes)])
+        g2 = pd.DataFrame({
+            "gene_expr_mean": rng.randn(n_genes),
+        }, index=[f"G{j}" for j in range(n_genes)])
+
+        # No cold genes — all warm
+        hybrid = HybridInteraction(n_components=3, cf_knn=5, random_state=42)
+        hybrid.fit(residuals, cell_ids, gene_ids, set(),
+                   gene_meta, pathway_meta, expr, g1, g2, verbose=False)
+
+        pred = hybrid.predict(cell_ids, gene_ids)
+        assert len(pred) == n_pairs
+        r2 = 1.0 - np.sum((residuals - pred) ** 2) / max(
+            np.sum((residuals - residuals.mean()) ** 2), 1e-12,
+        )
+        # SVD rank 3 should capture most of the rank-3 signal
+        assert r2 > 0.7, f"SVD R²={r2:.4f} too low"
+
+    def test_cold_gene_prediction(self):
+        """Cold genes with pathway neighbors should get non-zero predictions."""
+        rng = np.random.RandomState(42)
+        n_cells, n_warm, n_cold = 30, 30, 10
+        n_genes = n_warm + n_cold
+
+        # Build residual matrix (warm genes have data, cold have none)
+        U_true = rng.randn(n_cells, 2)
+        V_warm = rng.randn(n_warm, 2)
+        R_warm = U_true @ V_warm.T + 0.05 * rng.randn(n_cells, n_warm)
+
+        cell_ids = np.array([f"C{i}" for i in range(n_cells) for _ in range(n_warm)])
+        gene_ids = np.array([f"G{j}" for _ in range(n_cells) for j in range(n_warm)])
+        residuals = R_warm.flatten()
+
+        cold_genes = set(f"G{n_warm + j}" for j in range(n_cold))
+        all_genes = [f"G{j}" for j in range(n_genes)]
+
+        gene_meta = pd.DataFrame({
+            "gene_symbol": all_genes,
+            "pathways": [
+                "OXPHOS > CI" if j < 15 else "Ribosome > Mito"
+                for j in range(n_genes)
+            ],
+            "sub_mito_location": ["MIM"] * n_genes,
+        })
+        pathway_meta = pd.DataFrame({
+            "pathway_name": ["CI_subunits", "Mito_ribosome"],
+            "description": ["CI", "Mito ribosome"],
+            "n_genes": [10, 10],
+        })
+        expr = pd.DataFrame(
+            rng.randn(n_cells, n_genes),
+            index=[f"C{i}" for i in range(n_cells)],
+            columns=all_genes,
+        )
+        g1 = pd.DataFrame(
+            {f"feat_{k}": rng.randn(n_genes) for k in range(14)},
+            index=all_genes,
+        )
+        g2 = pd.DataFrame(
+            {"gene_expr_mean": rng.randn(n_genes)},
+            index=all_genes,
+        )
+
+        hybrid = HybridInteraction(n_components=2, cf_knn=5, random_state=42)
+        hybrid.fit(residuals, cell_ids, gene_ids, cold_genes,
+                   gene_meta, pathway_meta, expr, g1, g2, verbose=False)
+
+        # Predict for cold genes
+        cold_cell_ids = np.array(
+            [f"C{i}" for i in range(n_cells) for _ in range(n_cold)]
+        )
+        cold_gene_ids_arr = np.array(
+            [f"G{n_warm + j}" for _ in range(n_cells) for j in range(n_cold)]
+        )
+        pred_cold = hybrid.predict(cold_cell_ids, cold_gene_ids_arr)
+        assert len(pred_cold) == n_cells * n_cold
+        assert not np.allclose(pred_cold, hybrid.global_residual_mean_), \
+            "Cold gene predictions should differ from global mean"
+        assert pred_cold.std() > 1e-6, "Cold gene predictions have no variance"
+
+    def test_formula_str(self):
+        """Formula string should describe SVD+CF structure."""
+        rng = np.random.RandomState(42)
+        n_cells, n_genes = 20, 15
+        R = rng.randn(n_cells, n_genes)
+        cell_ids = np.array(
+            [f"C{i}" for i in range(n_cells) for _ in range(n_genes)]
+        )
+        gene_ids = np.array(
+            [f"G{j}" for _ in range(n_cells) for j in range(n_genes)]
+        )
+        residuals = R.flatten()
+
+        gene_meta = pd.DataFrame({
+            "gene_symbol": [f"G{j}" for j in range(n_genes)],
+            "pathways": ["OXPHOS > CI"] * n_genes,
+            "sub_mito_location": ["MIM"] * n_genes,
+        })
+        pathway_meta = pd.DataFrame({
+            "pathway_name": ["CI_subunits"],
+            "description": ["CI"],
+            "n_genes": [10],
+        })
+        expr = pd.DataFrame(
+            rng.randn(n_cells, n_genes),
+            index=[f"C{i}" for i in range(n_cells)],
+            columns=[f"G{j}" for j in range(n_genes)],
+        )
+        g1 = pd.DataFrame(
+            {f"feat_{k}": rng.randn(n_genes) for k in range(5)},
+            index=[f"G{j}" for j in range(n_genes)],
+        )
+        g2 = pd.DataFrame(
+            {"gene_expr_mean": rng.randn(n_genes)},
+            index=[f"G{j}" for j in range(n_genes)],
+        )
+
+        hybrid = HybridInteraction(n_components=2, cf_knn=3, random_state=42)
+        hybrid.fit(residuals, cell_ids, gene_ids, set(),
+                   gene_meta, pathway_meta, expr, g1, g2, verbose=False)
+
+        s = hybrid.formula_str()
+        assert "SVD" in s or "σ_k" in s or "u_k" in s
+        assert "R²" in s
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

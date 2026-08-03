@@ -29,7 +29,7 @@ from .baselines import (
 from .formula import (
     GeneEssentialityFormula, CellVulnerabilityFormula,
     ShrinkageGeneFormula, ShrinkageCellFormula,
-    IMCInteraction,
+    IMCInteraction, StructuredInteraction, HybridInteraction,
 )
 
 
@@ -92,9 +92,19 @@ def generate_all_interpretations(
             print("  3. Cell vulnerability coefficients...")
             results["cell_formula"] = _cell_formula_importance(cell_formula, output_dir)
 
-    # 4. IMC bilinear interaction feature interpretation
+    # 4. Interaction model interpretation
+    hybrid_interaction = models.get("hybrid_interaction")
+    si_interaction = models.get("si_interaction")
     imc_interaction = models.get("imc_interaction")
-    if imc_interaction is not None:
+    if hybrid_interaction is not None:
+        print("  4. Hybrid SVD+CF interaction...")
+        results["hybrid_interaction"] = _hybrid_interaction_summary(
+            hybrid_interaction, output_dir,
+        )
+    elif si_interaction is not None:
+        print("  4. Structured interaction coefficients...")
+        results["si_interactions"] = _si_interaction_coefficients(si_interaction, output_dir)
+    elif imc_interaction is not None:
         print("  4. IMC interaction feature weights...")
         results["imc_interactions"] = _imc_interaction_weights(imc_interaction, output_dir)
 
@@ -125,28 +135,48 @@ def _formula_printout(models: dict, output_dir: Path) -> str:
     """Save complete human-readable formula to file."""
     lines = []
     lines.append("=" * 70)
-    lines.append("GENE DEPENDENCY PREDICTION FORMULA (Empirical Bayes + SVD)")
+    lines.append("GENE DEPENDENCY PREDICTION FORMULA (Empirical Bayes + Structured Interaction)")
     lines.append("=" * 70)
     lines.append("")
 
     shrink_gene = models.get("shrink_gene")
     shrink_cell = models.get("shrink_cell")
+    hybrid_interaction = models.get("hybrid_interaction")
+    si_interaction = models.get("si_interaction")
     imc_interaction = models.get("imc_interaction")
 
     if shrink_gene is not None and shrink_cell is not None:
         lines.append("ŷ(c,g) = [w_g·x̄_g + (1-w_g)·Φ(g)] + [v_c·r̄_c + (1-v_c)·Ψ(c)]")
+        if hybrid_interaction is not None:
+            lines.append("       + I_SVD(c,g)  [warm: SVD, cold: pathway-CF transfer]")
+        elif si_interaction is not None:
+            lines.append("       + I_structured(c,g)  [Module×Indicator + Expr-Modulated + ...]")
         if imc_interaction is not None:
-            lines.append("       + x_c^T W H^T y_g")
+            lines.append("       + x_c^T W H^T y_g  [IMC residual]")
         lines.append("")
         lines.append(f"SHRINKAGE: λ_gene={shrink_gene.lambda_:.1f}, λ_cell={shrink_cell.lambda_:.1f}")
         lines.append(f"  w_g = n_g/(n_g+λ_gene) ∈ [0, 1]  (0=cold, 1=warm)")
         lines.append(f"  v_c = m_c/(m_c+λ_cell) ∈ [0, 1]")
         lines.append("")
 
+        if hybrid_interaction is not None:
+            lines.append("─" * 70)
+            lines.append(hybrid_interaction.formula_str())
+            lines.append("")
+
+        if si_interaction is not None:
+            lines.append("─" * 70)
+            lines.append(f"STRUCTURED INTERACTION: {len(si_interaction.feature_names_)} features")
+            lines.append(f"  Training R² = {si_interaction.train_r2_:.4f} (on double residual)")
+            for name, coef in si_interaction.get_top_interactions(top_n=10):
+                sign = "+" if coef >= 0 else "-"
+                lines.append(f"  {sign} {abs(coef):.4f} · {name}")
+            lines.append("")
+
         if imc_interaction is not None and imc_interaction.Z_ is not None:
             lines.append("─" * 70)
-            lines.append(f"IMC INTERACTION: rank={imc_interaction.rank}")
-            lines.append(f"  Training R² = {imc_interaction.train_r2_:.4f} (on double residual)")
+            lines.append(f"IMC RESIDUAL: rank={imc_interaction.rank}")
+            lines.append(f"  Training R² = {imc_interaction.train_r2_:.4f}")
             for ci, gj, z in imc_interaction.get_top_interactions(top_n=10):
                 lines.append(f"  Z[{ci}, {gj}] = {z:+.4f}")
             lines.append("")
@@ -241,6 +271,50 @@ def _imc_interaction_weights(
     print(f"    IMC: rank={imc.rank}, R²={imc.train_r2_:.4f}")
     for _, row in df.head(5).iterrows():
         print(f"    {row['cell_feature']} × {row['gene_feature']}: {row['weight']:+.4f}")
+    return str(path)
+
+
+def _si_interaction_coefficients(
+    si: "StructuredInteraction",
+    output_dir: Path,
+) -> str:
+    """Export structured interaction coefficients."""
+    top = si.get_top_interactions(top_n=50)
+    df = pd.DataFrame(top, columns=["interaction_term", "coefficient"])
+    df["abs_coefficient"] = np.abs(df["coefficient"])
+    df = df.sort_values("abs_coefficient", ascending=False)
+    path = output_dir / "structured_interaction_coefficients.csv"
+    df.to_csv(path, index=False)
+
+    print(f"    StructuredInteraction: {len(si.feature_names_)} features, "
+          f"R²={si.train_r2_:.4f}")
+    for _, row in df.head(5).iterrows():
+        print(f"    {row['interaction_term']}: {row['coefficient']:+.4f}")
+    return str(path)
+
+
+def _hybrid_interaction_summary(
+    hybrid: "HybridInteraction",
+    output_dir: Path,
+) -> str:
+    """Export hybrid SVD+CF interaction summary."""
+    lines = [hybrid.formula_str()]
+
+    # Save gene loadings for top 3 components
+    for comp in range(min(3, hybrid.n_components_used_)):
+        top = hybrid.get_top_gene_loadings(component=comp, top_n=30)
+        df = pd.DataFrame(top, columns=["gene", f"loading_comp{comp}"])
+        path = output_dir / f"svd_gene_loadings_comp{comp}.csv"
+        df.to_csv(path, index=False)
+        lines.append(f"  Saved gene loadings (comp {comp}) to {path}")
+
+    # Save formula
+    path = output_dir / "hybrid_interaction_formula.txt"
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+    print(f"    Hybrid SVD+CF: K={hybrid.n_components_used_}, "
+          f"R²={hybrid.train_r2_:.4f}, "
+          f"cold CF={len(hybrid.cold_to_warm_)} genes")
     return str(path)
 
 

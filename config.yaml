@@ -115,12 +115,24 @@ prediction:
     # Cold-start: pathway-similarity KNN transfer
     cold_knn: 20                     # Number of warm neighbors for cold genes
 
-    # ── Inductive Matrix Completion (IMC) bilinear interaction ────────────
+    # ── Hybrid SVD + Gene-Similarity CF Interaction ──────────────────────
+    hybrid_interaction:
+      n_components: 30                 # SVD components for warm genes
+      cf_knn: 30                       # K nearest warm neighbors for cold gene CF
+      cf_weight: 0.7                   # CF blend weight (0=formula only, 1=CF only)
+
+    # ── Structured Biological Interaction (legacy) ───────────────────────
+    structured_interaction:
+      alpha: 1.0
+      include_lineage: true
+
+    # ── Inductive Matrix Completion (IMC) ────────────────────────────────
     imc:
-      rank: 12                        # Latent dimension r in Z = WH^T
-      lambda_w: 0.1                   # Ridge regularization for W
-      lambda_h: 0.1                   # Ridge regularization for H
-      max_iter: 30                    # ALS iterations
+      enabled: false
+      rank: 12
+      lambda_w: 0.1
+      lambda_h: 0.1
+      max_iter: 30
 
   # ── Legacy white-box config (preserved for reference; not used by formula models)
   whitebox:
