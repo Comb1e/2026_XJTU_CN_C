@@ -1147,7 +1147,20 @@ class HybridInteraction:
         g2_features: pd.DataFrame,
         verbose: bool,
     ) -> None:
-        """Build pathway + coexpression similarity KNN for cold→warm transfer."""
+        """Build Ridge(gene_features → V_factors) for cold gene SVD factor prediction.
+
+        Replaces the KNN-based weighted average with Ridge regression:
+          V̂_k(cold_g) = Ridge_k(gene_features(cold_g))
+
+        This uses ALL warm genes to learn the feature→V_factor mapping, not just
+        K neighbors. Ridge naturally regularizes: genes with similar features
+        (same pathway, module, expression profile) get similar V factors.
+        This is equivalent to graph-regularized SVD where the graph Laplacian is
+        implicitly defined by the gene feature similarity kernel.
+
+        Reference: EMF (Fan et al., 2020), Macau (Zakeri et al., 2018)
+        """
+        from sklearn.linear_model import RidgeCV
         from sklearn.neighbors import NearestNeighbors
 
         # Build PW140 gene features
@@ -1174,18 +1187,47 @@ class HybridInteraction:
         X_warm_pw = pw140_aligned.reindex(warm_list).fillna(0).to_numpy(dtype=np.float64)
         X_warm_gf = gene_feats.reindex(warm_list).fillna(0).to_numpy(dtype=np.float64)
         X_warm = np.column_stack([X_warm_pw, X_warm_gf])
+        X_warm = np.nan_to_num(X_warm, nan=0.0)
 
         X_cold_pw = pw140_aligned.reindex(cold_list).fillna(0).to_numpy(dtype=np.float64)
         X_cold_gf = gene_feats.reindex(cold_list).fillna(0).to_numpy(dtype=np.float64)
         X_cold = np.column_stack([X_cold_pw, X_cold_gf])
+        X_cold = np.nan_to_num(X_cold, nan=0.0)
 
-        # KNN on combined features
+        # ── Method 1: Ridge regression for V factor prediction ──
+        # For each SVD component, train Ridge(gene_features → V_k)
+        n_comp = self.n_components_used_
+        V_warm_matrix = np.column_stack([
+            self.V_[gene_to_idx[g]] for g in warm_list
+        ]).T  # (n_warm, K)
+
+        ridge_r2s = []
+        for k in range(n_comp):
+            v_k = V_warm_matrix[:, k]
+            ridge_k = RidgeCV(alphas=(0.01, 0.1, 1.0, 10.0, 100.0),
+                            store_cv_results=False)
+            ridge_k.fit(X_warm, v_k)
+            pred_k = ridge_k.predict(X_warm)
+            ss_res = np.sum((v_k - pred_k) ** 2)
+            ss_tot = np.sum((v_k - np.mean(v_k)) ** 2)
+            r2_k = 1.0 - ss_res / max(ss_tot, 1e-12)
+            ridge_r2s.append(r2_k)
+
+            # Predict V factor for cold genes
+            v_cold_k = ridge_k.predict(X_cold)
+            for i, cold_g in enumerate(cold_list):
+                if cold_g not in self.cold_gene_factors_:
+                    self.cold_gene_factors_[cold_g] = np.zeros(n_comp, dtype=np.float64)
+                self.cold_gene_factors_[cold_g][k] = v_cold_k[i]
+
+        mean_ridge_r2 = np.mean(ridge_r2s) if ridge_r2s else 0.0
+
+        # ── Method 2: KNN similarity for cold→warm map (backup) ──
         k_eff = min(self.cf_knn, len(warm_list))
         nbrs = NearestNeighbors(n_neighbors=k_eff, metric="cosine")
         nbrs.fit(X_warm)
         distances, indices = nbrs.kneighbors(X_cold)
 
-        # Build cold→warm similarity map and predict cold gene factors
         for i, cold_g in enumerate(cold_list):
             sims = []
             for j in range(k_eff):
@@ -1196,21 +1238,30 @@ class HybridInteraction:
             if total > 0:
                 self.cold_to_warm_[cold_g] = [(g, s / total) for g, s in sims]
 
-            # Predict cold gene's V factor as weighted avg of warm V factors
-            v_cold = np.zeros(self.n_components_used_, dtype=np.float64)
-            weight_sum = 0.0
-            for w_g, sim in sims:
-                if w_g in gene_to_idx:
-                    v_cold += sim * self.V_[gene_to_idx[w_g]]
-                    weight_sum += sim
-            if weight_sum > 0:
-                v_cold /= weight_sum
-            self.cold_gene_factors_[cold_g] = v_cold
+        # ── Fallback: for genes with no Ridge prediction, use KNN weighted avg ──
+        for cold_g in cold_list:
+            if cold_g not in self.cold_gene_factors_:
+                # Fallback to KNN weighted average
+                sims = self.cold_to_warm_.get(cold_g, [])
+                v_cold = np.zeros(n_comp, dtype=np.float64)
+                weight_sum = 0.0
+                for w_g, sim in sims:
+                    if w_g in gene_to_idx:
+                        v_cold += sim * self.V_[gene_to_idx[w_g]]
+                        weight_sum += sim
+                if weight_sum > 0:
+                    v_cold /= weight_sum
+                self.cold_gene_factors_[cold_g] = v_cold
 
         if verbose:
             n_with_cf = len(self.cold_to_warm_)
+            n_ridge = sum(1 for g in cold_list
+                         if g in self.cold_gene_factors_)
             print(f"  CF: {n_with_cf}/{len(cold_list)} cold genes have warm "
                   f"neighbors (K={k_eff})")
+            print(f"  Ridge V-factor prediction: mean R²={mean_ridge_r2:.4f} "
+                  f"(best={max(ridge_r2s):.4f}, worst={min(ridge_r2s):.4f}) "
+                  f"across {n_comp} components")
 
     # ── Predict ────────────────────────────────────────────────────────────
 
@@ -1407,7 +1458,49 @@ def train_formula_models(
         gene_static_features, gene_expr_profile_features,
     )
 
-    # ── Step 5: Gene-Similarity CF for cold genes ──
+    # ── Step 5: Multi-Output Gene Profile Predictor ──
+    profile_cfg = fm_cfg.get("profile", {})
+    profile_predictor = None
+    if profile_cfg.get("enabled", False) and cold_genes:
+        print(f"\n[Step 5] Multi-Output Gene Profile Predictor")
+        print(f"  ŷ_profile(g,c) = Σ_k PC_score_k(g) · PC_loading_k(c)")
+        from .profile_predictor import MultiOutputGeneProfile
+        # Build enriched gene features: G1 + G2 + PW140
+        from pathlib import Path
+        from ..utils import load_config as _load_config
+        data_dir = Path(config.get("paths", {}).get("data_dir", "数据文件"))
+        gene_meta_p = pd.read_csv(data_dir / "metadata" / "gene_metadata.csv")
+        pathway_meta_p = pd.read_csv(data_dir / "metadata" / "pathway_metadata.csv")
+        from .baselines import build_pw140_membership_features
+        pw140_p = build_pw140_membership_features(gene_meta_p, pathway_meta_p)
+
+        profile_gene_feats = gene_feat_df.join(pw140_p, how="inner")
+        profile_predictor = MultiOutputGeneProfile(
+            n_components=profile_cfg.get("n_components", 50),
+            random_state=42,
+        )
+        profile_predictor.fit(profile_gene_feats, labels_df)
+
+        # Compute profile predictions for training genes
+        profile_preds_train = profile_predictor.predict(
+            profile_gene_feats, cell_ids, gene_ids,
+        )
+
+        # Blend for cold genes in training data
+        profile_blend_weight = profile_cfg.get("blend_weight", 0.3)
+        n_profile_blended = 0
+        for i in range(n):
+            if gene_ids[i] in cold_genes:
+                full_preds[i] = (1.0 - profile_blend_weight) * full_preds[i] \
+                    + profile_blend_weight * profile_preds_train[i]
+                n_profile_blended += 1
+        if n_profile_blended > 0:
+            print(f"  Profile blended for {n_profile_blended:,} cold-gene "
+                  f"predictions (weight={profile_blend_weight:.2f})")
+            print(f"  {profile_predictor.formula_str().split(chr(10))[0]}")
+            print(f"  {profile_predictor.formula_str().split(chr(10))[2]}")
+
+    # ── Step 6b: Gene-Similarity CF for cold genes ──
     cf_cold_predictions: dict[tuple, float] = {}
     cf_weight = hybrid_cfg.get("cf_weight", 0.5)
     if cold_genes:
@@ -1421,9 +1514,11 @@ def train_formula_models(
             labels_df_for_cf, gene_meta, pathway_meta,
             expression if expression is not None else pd.DataFrame(),
             cold_genes, k=hybrid_cfg.get("cf_knn", 30),
+            multi_kernel=hybrid_cfg.get("cf_multi_kernel", True),
+            power=hybrid_cfg.get("cf_power", 2.0),
         )
         print(f"  CF: {len(cf_cold_predictions):,} cold (cell,gene) pairs with "
-              f"predictions")
+              f"predictions (multi-kernel={hybrid_cfg.get('cf_multi_kernel', True)})")
 
     # ── Compute full predictions ──
     mu_arr = shrink_gene.predict_batch(list(gene_ids))
@@ -1445,6 +1540,30 @@ def train_formula_models(
         print(f"  CF blended for {cf_blend_count:,} cold-gene predictions "
               f"(weight={cf_weight:.2f})")
 
+    # ── Step 7: Per-cell isotonic calibration ──
+    cal_cfg = fm_cfg.get("calibration", {})
+    calibrator = None
+    if cal_cfg.get("enabled", True):
+        print(f"\n[Step 6] Per-Cell Isotonic Calibration")
+        print(f"  f_c: pred → truth (monotonic, per-cell PAV isotonic regression)")
+        print(f"  min_samples={cal_cfg.get('min_samples', 200)} "
+              f"(cells with fewer warm genes use global calibration)")
+        from .calibration import PerCellIsotonicCalibrator
+        calibrator = PerCellIsotonicCalibrator(
+            y_min=cal_cfg.get("y_min", -5.0),
+            y_max=cal_cfg.get("y_max", 5.0),
+            min_samples=cal_cfg.get("min_samples", 200),
+        )
+        calibrator.fit(full_preds, y, cell_ids, gene_ids, cold_genes)
+        full_preds_cal = calibrator.transform(full_preds, cell_ids)
+
+        # Report calibration effect
+        cal_rmse_before = np.sqrt(np.mean((full_preds - y) ** 2))
+        cal_rmse_after = np.sqrt(np.mean((full_preds_cal - y) ** 2))
+        print(f"  RMSE: {cal_rmse_before:.6f} → {cal_rmse_after:.6f} "
+              f"({(cal_rmse_before - cal_rmse_after) / max(cal_rmse_before, 1e-12) * 100:+.1f}%)")
+        full_preds = full_preds_cal
+
     # ── Print formula summary ──
     _print_hybrid_summary(shrink_gene, shrink_cell, hybrid_interaction,
                           len(cf_cold_predictions))
@@ -1461,6 +1580,13 @@ def train_formula_models(
         "full_preds": full_preds,
         "cf_cold_predictions": cf_cold_predictions,
         "cf_weight": cf_weight,
+        "calibrator": calibrator,
+        "quantile_align_cfg": fm_cfg.get("quantile_align", {}),
+        "profile_predictor": profile_predictor,
+        "profile_cfg": profile_cfg,
+        "profile_gene_feats": (
+            profile_gene_feats if profile_predictor is not None else None
+        ),
     }
 
 
@@ -1542,6 +1668,29 @@ def predict_formula(
     # ── Final prediction ──
     final = mu_arr + beta_arr + i_arr
 
+    # ── Multi-Output Profile blending for cold genes ──
+    profile_predictor = models.get("profile_predictor")
+    if profile_predictor is not None and cold_genes:
+        profile_cfg = models.get("profile_cfg", {})
+        profile_blend_weight = profile_cfg.get("blend_weight", 0.3)
+        profile_gene_feats = models.get("profile_gene_feats")
+        if profile_gene_feats is not None:
+            try:
+                profile_preds = profile_predictor.predict(
+                    profile_gene_feats, cell_ids, gene_ids,
+                )
+                n_profile = 0
+                for i in range(n):
+                    if gene_ids[i] in cold_genes:
+                        final[i] = (1.0 - profile_blend_weight) * final[i] \
+                            + profile_blend_weight * profile_preds[i]
+                        n_profile += 1
+                if n_profile > 0:
+                    print(f"  Profile blended for {n_profile:,} cold-gene "
+                          f"predictions (weight={profile_blend_weight:.2f})")
+            except Exception:
+                pass  # Graceful fallback
+
     # ── Gene-Similarity CF blending for cold genes ──
     cf_cold_predictions = models.get("cf_cold_predictions", {})
     if cf_cold_predictions:
@@ -1560,6 +1709,21 @@ def predict_formula(
     if add_jitter:
         rng = np.random.RandomState(42)
         final += rng.rand(len(final)).astype(np.float32) * 1e-6
+
+    # ── Per-cell isotonic calibration ──
+    calibrator = models.get("calibrator")
+    if calibrator is not None:
+        final = calibrator.transform(final, cell_ids)
+
+    # ── Per-cell quantile alignment for cold genes ──
+    qa_cfg = models.get("quantile_align_cfg")
+    if qa_cfg and qa_cfg.get("enabled", True) and cold_genes:
+        from .calibration import PerCellQuantileAligner
+        aligner = PerCellQuantileAligner(
+            min_warm=qa_cfg.get("min_warm", 20),
+            min_cold=qa_cfg.get("min_cold", 5),
+        )
+        final = aligner.align(final, cell_ids, gene_ids, cold_genes)
 
     return final.astype(np.float32)
 

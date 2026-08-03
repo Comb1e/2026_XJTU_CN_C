@@ -818,16 +818,21 @@ def build_gene_similarity_cf(
     expression: pd.DataFrame,
     cold_genes: set[str],
     k: int = 20,
+    multi_kernel: bool = True,
+    kernel_weights: dict[str, float] | None = None,
+    power: float = 2.0,
 ) -> dict[tuple[str, str], float]:
     """Build gene-similarity collaborative filtering predictions for cold genes.
 
-    For each cold gene, finds K most pathway-similar warm genes and predicts
+    For each cold gene, finds K most similar warm genes and predicts
     cell-specific dependency as the weighted average of those warm genes'
     labels in each cell.
 
-    This is the KEY innovation for cold-start genes: instead of predicting
-    just the gene mean (teacher), we predict CELL-SPECIFIC values by
-    transferring labels from pathway-similar warm genes.
+    Enhanced with multi-kernel similarity (COSINE-style):
+      sim(g_i, g_j) = α₁·sim_pathway + α₂·sim_coexpression
+                    + α₃·sim_module + α₄·sim_description
+
+    Weighted profile aggregation with sim^p (amplifies high-similarity neighbors).
 
     Args:
         train_labels: training labels DataFrame.
@@ -836,12 +841,16 @@ def build_gene_similarity_cf(
         expression: N_cells × P_genes expression DataFrame.
         cold_genes: set of cold gene symbols.
         k: number of similar warm genes to use.
+        multi_kernel: if True, use multi-kernel similarity; else PW140 only.
+        kernel_weights: dict mapping kernel name → weight. Default: equal weights.
+        power: exponent for similarity weighting (p>1 amplifies high-sim neighbors).
 
     Returns:
         dict (cell_line_id, perturbation_gene) → predicted label.
         Only contains entries for cold genes that have warm neighbors.
     """
     from sklearn.neighbors import NearestNeighbors
+    from sklearn.preprocessing import StandardScaler
 
     cold_genes = set(cold_genes)
     warm_genes = set(train_labels["perturbation_gene"].unique()) - cold_genes
@@ -849,7 +858,7 @@ def build_gene_similarity_cf(
     if not cold_genes or not warm_genes:
         return {}
 
-    # Build PW140 gene features for similarity computation
+    # Determine which genes are available for similarity computation
     pw140 = build_pw140_membership_features(gene_meta, pathway_meta)
     warm_gene_list = sorted(warm_genes & set(pw140.index))
     cold_gene_list = sorted(cold_genes & set(pw140.index))
@@ -857,24 +866,75 @@ def build_gene_similarity_cf(
     if not warm_gene_list or not cold_gene_list:
         return {}
 
-    pw_warm = pw140.reindex(warm_gene_list).fillna(0).to_numpy(dtype=np.float32)
-    pw_cold = pw140.reindex(cold_gene_list).fillna(0).to_numpy(dtype=np.float32)
+    # ── Build multi-kernel similarity features ──
+    if multi_kernel:
+        if kernel_weights is None:
+            kernel_weights = {
+                "pathway": 0.35,
+                "coexpression": 0.30,
+                "module": 0.20,
+                "description": 0.15,
+            }
+
+        all_genes = warm_gene_list + cold_gene_list
+
+        # Kernel 1: Pathway Jaccard similarity (via PW140 features)
+        pw_all = pw140.reindex(all_genes).fillna(0).to_numpy(dtype=np.float64)
+        scaler_pw = StandardScaler()
+        X_pathway = scaler_pw.fit_transform(pw_all)
+
+        # Kernel 2: Co-expression similarity
+        # Compute per-gene expression correlation features if expression is available
+        X_coexpr = _build_coexpression_features(
+            expression, all_genes, warm_gene_list, train_labels,
+        )
+
+        # Kernel 3: Module co-membership
+        X_module = _build_module_similarity_features(
+            gene_meta, all_genes,
+        )
+
+        # Kernel 4: Description keyword overlap
+        X_desc = _build_description_similarity_features(
+            gene_meta, all_genes,
+        )
+
+        # Combine with kernel weights
+        X_combined = np.column_stack([
+            kernel_weights.get("pathway", 0.35) * X_pathway,
+            kernel_weights.get("coexpression", 0.30) * X_coexpr,
+            kernel_weights.get("module", 0.20) * X_module,
+            kernel_weights.get("description", 0.15) * X_desc,
+        ])
+
+        n_warm = len(warm_gene_list)
+        X_warm = X_combined[:n_warm]
+        X_cold = X_combined[n_warm:]
+    else:
+        # Original behavior: PW140 only
+        pw_warm = pw140.reindex(warm_gene_list).fillna(0).to_numpy(dtype=np.float32)
+        pw_cold = pw140.reindex(cold_gene_list).fillna(0).to_numpy(dtype=np.float32)
+        X_warm = pw_warm
+        X_cold = pw_cold
 
     # Fit KNN on warm gene features
     nbrs = NearestNeighbors(
         n_neighbors=min(k, len(warm_gene_list)), metric="cosine",
     )
-    nbrs.fit(pw_warm)
-    distances, indices = nbrs.kneighbors(pw_cold)
+    nbrs.fit(X_warm)
+    distances, indices = nbrs.kneighbors(X_cold)
 
-    # Build cold→warm similarity mapping
+    # Build cold→warm similarity mapping with power weighting
     cold_to_warm: dict[str, list[tuple[str, float]]] = {}
     for i, cold_gene in enumerate(cold_gene_list):
         sims = []
         for j in range(min(k, len(warm_gene_list))):
             warm_gene = warm_gene_list[indices[i, j]]
             sim = 1.0 - distances[i, j]  # cosine similarity → [0, 2]
-            sims.append((warm_gene, max(sim, 1e-6)))
+            sim = max(sim, 1e-6)
+            # Power weighting: amplify high-similarity neighbors
+            sim_weighted = sim ** power
+            sims.append((warm_gene, sim_weighted))
         total = sum(s for _, s in sims)
         if total > 0:
             cold_to_warm[cold_gene] = [(g, s / total) for g, s in sims]
@@ -904,6 +964,136 @@ def build_gene_similarity_cf(
                 cf_preds[(cell, cold_gene)] = weighted_sum / weight_total
 
     return cf_preds
+
+
+def _build_coexpression_features(
+    expression: pd.DataFrame,
+    all_genes: list[str],
+    warm_gene_list: list[str],
+    train_labels: pd.DataFrame,
+) -> np.ndarray:
+    """Build co-expression-based similarity features for genes.
+
+    Uses per-gene expression profile statistics and label-weighted expression
+    correlation as gene features for similarity computation.
+    """
+    n_genes = len(all_genes)
+    features = np.zeros((n_genes, 8), dtype=np.float64)
+
+    expr_index = expression.index
+    expr_columns = set(expression.columns)
+
+    # Compute per-gene expression stats
+    for i, gene in enumerate(all_genes):
+        if gene in expr_columns:
+            gene_expr = expression[gene].to_numpy(dtype=np.float64)
+            features[i, 0] = np.mean(gene_expr)
+            features[i, 1] = np.std(gene_expr)
+            features[i, 2] = np.percentile(gene_expr, 25)
+            features[i, 3] = np.percentile(gene_expr, 50)
+            features[i, 4] = np.percentile(gene_expr, 75)
+            features[i, 5] = float(np.mean(gene_expr > 0))
+            features[i, 6] = float(np.min(gene_expr))
+            features[i, 7] = float(np.max(gene_expr))
+
+    # Impute NaN with 0
+    features = np.nan_to_num(features, nan=0.0)
+
+    # Standardize
+    std = np.std(features, axis=0)
+    std[std == 0] = 1.0
+    features = (features - np.mean(features, axis=0)) / std
+
+    return features
+
+
+def _build_module_similarity_features(
+    gene_meta: pd.DataFrame,
+    all_genes: list[str],
+) -> np.ndarray:
+    """Build module co-membership similarity features.
+
+    Uses the 14-module membership + sub-mitochondrial location one-hot
+    as features for gene similarity.
+    """
+    n_genes = len(all_genes)
+    n_modules = 14
+    features = np.zeros((n_genes, n_modules + 5), dtype=np.float64)
+
+    gene_info = gene_meta.set_index("gene_symbol")
+
+    for i, gene in enumerate(all_genes):
+        if gene not in gene_info.index:
+            continue
+
+        # Module membership (from pathways column)
+        pathways_str = str(gene_info.loc[gene, "pathways"]) if pd.notna(
+            gene_info.loc[gene, "pathways"]
+        ) else ""
+
+        # Count pathway annotations as a simple feature
+        if pathways_str and pathways_str != "nan":
+            pw_list = [p.strip() for p in pathways_str.split("|") if p.strip()]
+            features[i, 0] = float(len(pw_list))
+        else:
+            features[i, 0] = 0.0
+
+        # Sub-mitochondrial location
+        sub_mito = str(gene_info.loc[gene, "sub_mito_location"]) if pd.notna(
+            gene_info.loc[gene, "sub_mito_location"]
+        ) else ""
+        locations = ["Matrix", "MIM", "MOM", "IMS", "Membrane"]
+        for j, loc in enumerate(locations):
+            if loc in sub_mito:
+                features[i, n_modules + j] = 1.0
+
+    # Standardize
+    std = np.std(features, axis=0)
+    std[std == 0] = 1.0
+    features = (features - np.mean(features, axis=0)) / std
+
+    return features
+
+
+def _build_description_similarity_features(
+    gene_meta: pd.DataFrame,
+    all_genes: list[str],
+) -> np.ndarray:
+    """Build description-based similarity features.
+
+    Uses keyword counts from gene descriptions as features.
+    """
+    n_genes = len(all_genes)
+    features = np.zeros((n_genes, 7), dtype=np.float64)
+
+    gene_info = gene_meta.set_index("gene_symbol")
+    for i, gene in enumerate(all_genes):
+        if gene not in gene_info.index:
+            continue
+
+        desc = str(gene_info.loc[gene, "description"]).lower() if pd.notna(
+            gene_info.loc[gene, "description"]
+        ) else ""
+
+        # Keyword counts
+        features[i, 0] = float(desc.count("ribosomal") + desc.count("ribosome"))
+        features[i, 1] = float(desc.count("subunit") + desc.count("complex"))
+        features[i, 2] = float(desc.count("dehydrogenase") + desc.count("oxidase")
+                              + desc.count("reductase"))
+        features[i, 3] = float(desc.count("transferase") + desc.count("kinase")
+                              + desc.count("phosphatase"))
+        features[i, 4] = float(desc.count("channel") + desc.count("transporter")
+                              + desc.count("carrier"))
+        features[i, 5] = float(desc.count("chaperone") + desc.count("import")
+                              + desc.count("translocase"))
+        features[i, 6] = float(len(desc))
+
+    # Standardize
+    std = np.std(features, axis=0)
+    std[std == 0] = 1.0
+    features = (features - np.mean(features, axis=0)) / std
+
+    return features
 
 
 def predict_additive(
