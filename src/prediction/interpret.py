@@ -29,6 +29,7 @@ from .baselines import (
 )
 from .formula import (
     GeneEssentialityFormula, CellVulnerabilityFormula,
+    ShrinkageGeneFormula, ShrinkageCellFormula,
     ModuleInteractionFormula, ExpressionEffectFormula,
     ModuleMatchFormula, EvidenceWeightedFormula,
     InteractionBlend,
@@ -70,17 +71,29 @@ def generate_all_interpretations(
     print("  1. Formula printout...")
     results["formula_printout"] = _formula_printout(models, output_dir)
 
-    # 2. Gene essentiality feature importance
-    gene_formula = models.get("gene_formula")
-    if gene_formula is not None:
-        print("  2. Gene essentiality coefficients...")
-        results["gene_formula"] = _gene_formula_importance(gene_formula, output_dir)
+    # 2. Gene essentiality feature importance (from shrinkage model)
+    shrink_gene = models.get("shrink_gene")
+    if shrink_gene is not None and shrink_gene.gene_formula_ is not None:
+        print("  2. Gene essentiality coefficients (prior Φ(g))...")
+        results["gene_formula"] = _gene_formula_importance(shrink_gene.gene_formula_, output_dir)
+        # Also save shrinkage stats
+        _shrinkage_stats(shrink_gene, output_dir)
+    else:
+        gene_formula = models.get("gene_formula")
+        if gene_formula is not None:
+            print("  2. Gene essentiality coefficients...")
+            results["gene_formula"] = _gene_formula_importance(gene_formula, output_dir)
 
-    # 3. Cell vulnerability feature importance
-    cell_formula = models.get("cell_formula")
-    if cell_formula is not None:
-        print("  3. Cell vulnerability coefficients...")
-        results["cell_formula"] = _cell_formula_importance(cell_formula, output_dir)
+    # 3. Cell vulnerability feature importance (from shrinkage model)
+    shrink_cell = models.get("shrink_cell")
+    if shrink_cell is not None and shrink_cell.cell_formula_ is not None:
+        print("  3. Cell vulnerability coefficients (prior Ψ(c))...")
+        results["cell_formula"] = _cell_formula_importance(shrink_cell.cell_formula_, output_dir)
+    else:
+        cell_formula = models.get("cell_formula")
+        if cell_formula is not None:
+            print("  3. Cell vulnerability coefficients...")
+            results["cell_formula"] = _cell_formula_importance(cell_formula, output_dir)
 
     # 4. Module×Indicator interaction coefficients
     i_mod = models.get("i_mod_formula")
@@ -127,25 +140,52 @@ def _formula_printout(models: dict, output_dir: Path) -> str:
     """Save complete human-readable formula to file."""
     lines = []
     lines.append("=" * 70)
-    lines.append("GENE DEPENDENCY PREDICTION FORMULA")
+    lines.append("GENE DEPENDENCY PREDICTION FORMULA (Empirical Bayes)")
     lines.append("=" * 70)
     lines.append("")
-    lines.append("ŷ(c,g) = μ̂_g + β̂_c + Blend[I_mod, I_expr, I_match, I_ew]")
-    lines.append("")
 
-    gene_formula = models.get("gene_formula")
-    if gene_formula is not None:
-        lines.append("─" * 70)
-        lines.append("GENE ESSENTIALITY μ̂_g:")
-        lines.append(gene_formula.formula_str(top_n=10))
+    shrink_gene = models.get("shrink_gene")
+    shrink_cell = models.get("shrink_cell")
+
+    if shrink_gene is not None and shrink_cell is not None:
+        lines.append("ŷ(c,g) = [w_g·x̄_g + (1-w_g)·Φ(g)] + [v_c·r̄_c + (1-v_c)·Ψ(c)]")
+        lines.append("       + Blend[I_mod, I_expr, I_match, I_ew]")
+        lines.append("")
+        lines.append(f"SHRINKAGE: λ_gene={shrink_gene.lambda_:.1f}, λ_cell={shrink_cell.lambda_:.1f}")
+        lines.append(f"  w_g = n_g/(n_g+λ_gene) ∈ [0, 1]  (0=cold, 1=warm)")
+        lines.append(f"  v_c = m_c/(m_c+λ_cell) ∈ [0, 1]")
         lines.append("")
 
-    cell_formula = models.get("cell_formula")
-    if cell_formula is not None:
-        lines.append("─" * 70)
-        lines.append("CELL VULNERABILITY β̂_c:")
-        lines.append(cell_formula.formula_str(top_n=10))
+        gf = shrink_gene.gene_formula_
+        if gf is not None:
+            lines.append("─" * 70)
+            lines.append("GENE PRIOR Φ(g):")
+            lines.append(gf.formula_str(top_n=10))
+            lines.append("")
+
+        cf = shrink_cell.cell_formula_
+        if cf is not None:
+            lines.append("─" * 70)
+            lines.append("CELL PRIOR Ψ(c):")
+            lines.append(cf.formula_str(top_n=10))
+            lines.append("")
+    else:
+        lines.append("ŷ(c,g) = μ̂_g + β̂_c + Blend[I_mod, I_expr, I_match, I_ew]")
         lines.append("")
+
+        gene_formula = models.get("gene_formula")
+        if gene_formula is not None:
+            lines.append("─" * 70)
+            lines.append("GENE ESSENTIALITY μ̂_g:")
+            lines.append(gene_formula.formula_str(top_n=10))
+            lines.append("")
+
+        cell_formula = models.get("cell_formula")
+        if cell_formula is not None:
+            lines.append("─" * 70)
+            lines.append("CELL VULNERABILITY β̂_c:")
+            lines.append(cell_formula.formula_str(top_n=10))
+            lines.append("")
 
     i_mod = models.get("i_mod_formula")
     if i_mod is not None:
@@ -264,6 +304,41 @@ def _blend_weights(blend: InteractionBlend, output_dir: Path) -> str:
     df.to_csv(path, index=False)
     for _, row in df.iterrows():
         print(f"    {row['component']}: {row['weight']:+.4f}")
+    return str(path)
+
+
+def _shrinkage_stats(
+    shrink_gene: ShrinkageGeneFormula,
+    output_dir: Path,
+) -> str:
+    """Export empirical Bayes shrinkage statistics."""
+    weights = shrink_gene.weights
+    n_genes = {g: shrink_gene.n_g_.get(g, 0) for g in shrink_gene.mu_g_}
+
+    rows = []
+    for g in sorted(shrink_gene.mu_g_.keys()):
+        rows.append({
+            "gene": g,
+            "n_cells": n_genes.get(g, 0),
+            "evidence_weight": weights.get(g, 0.0),
+            "observed_mean": shrink_gene.x_bar_g_.get(g, 0.0),
+            "prior_prediction": shrink_gene.phi_g_.get(g, 0.0),
+            "shrunk_estimate": shrink_gene.mu_g_.get(g, 0.0),
+        })
+
+    df = pd.DataFrame(rows)
+    df = df.sort_values("evidence_weight", ascending=False)
+    path = output_dir / "gene_shrinkage_stats.csv"
+    df.to_csv(path, index=False)
+
+    # Summary
+    n_cold = int((df["n_cells"] == 0).sum())
+    n_warm = int((df["n_cells"] > 0).sum())
+    print(f"    λ={shrink_gene.lambda_:.1f}, {n_warm} warm + {n_cold} cold genes")
+    print(f"    Evidence weights: "
+          f"warm ∈ [{df[df['n_cells']>0]['evidence_weight'].min():.3f}, "
+          f"{df[df['n_cells']>0]['evidence_weight'].max():.3f}], "
+          f"cold = 0.0")
     return str(path)
 
 
