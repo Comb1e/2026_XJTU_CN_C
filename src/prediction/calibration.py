@@ -253,6 +253,75 @@ class PerCellQuantileAligner:
         return aligned
 
 
+def per_cell_variance_match(
+    preds: np.ndarray,
+    cell_ids: np.ndarray,
+    gene_ids: np.ndarray,
+    cold_genes: set[str],
+    min_warm: int = 10,
+    min_cold: int = 3,
+    verbose: bool = True,
+) -> np.ndarray:
+    """Match cold gene prediction variance to warm gene variance per cell.
+
+    Problem: Cold gene predictions cluster near the mean (low within-cell variance),
+    so they never appear at the top or bottom of per-cell rankings. This kills
+    NDCG and Precision scores.
+
+    Solution: Within each cell, apply a linear transform to cold gene predictions:
+        p'_cold = (p_cold - μ_cold) * (σ_warm / σ_cold) + μ_warm
+
+    This preserves the RELATIVE ORDER of cold genes (linear = monotonic) but
+    spreads them to match the warm gene prediction spread. Cold genes can then
+    reach top/bottom positions in the per-cell ranking.
+
+    Args:
+        preds: (N,) raw predictions.
+        cell_ids: (N,) cell identifiers.
+        gene_ids: (N,) gene identifiers.
+        cold_genes: set of cold gene symbols.
+        min_warm, min_cold: minimum genes per cell to apply.
+
+    Returns:
+        aligned predictions (same shape as preds).
+    """
+    matched = preds.copy().astype(np.float64)
+    n_cells_done = 0
+
+    unique_cells = set(cell_ids)
+    for cell in unique_cells:
+        cell_mask = cell_ids == cell
+        cold_mask = cell_mask & np.array([g in cold_genes for g in gene_ids])
+        warm_mask = cell_mask & ~cold_mask
+
+        n_warm = warm_mask.sum()
+        n_cold = cold_mask.sum()
+
+        if n_warm < min_warm or n_cold < min_cold:
+            continue
+
+        warm_preds = preds[warm_mask]
+        cold_preds = preds[cold_mask]
+
+        mu_w = np.mean(warm_preds)
+        std_w = np.std(warm_preds)
+        mu_c = np.mean(cold_preds)
+        std_c = np.std(cold_preds)
+
+        if std_c < 1e-8 or std_w < 1e-8:
+            continue
+
+        # Linear transform: match mean and variance
+        matched[cold_mask] = (cold_preds - mu_c) * (std_w / std_c) + mu_w
+        n_cells_done += 1
+
+    if verbose and n_cells_done > 0:
+        print(f"  [VarMatch] {n_cells_done} cells: cold gene variance "
+              f"matched to warm gene variance")
+
+    return matched
+
+
 def per_cell_standardize(
     preds: np.ndarray,
     cell_ids: np.ndarray,

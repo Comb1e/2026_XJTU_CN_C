@@ -120,8 +120,8 @@ prediction:
       enabled: true                    # Per-cell isotonic regression calibration
       y_min: -5.0                      # Clip lower bound
       y_max: 5.0                       # Clip upper bound
-      min_samples: 200                 # Min warm genes per cell to fit cell-specific curve
-                                       # (higher → more cells use global calibration, less overfit)
+      min_samples: 100000              # Min warm genes per cell to fit cell-specific curve
+                                       # (very high → always use global calibration, avoid overfit)
 
     # ── Per-cell quantile alignment for cold genes ───────────────────
     quantile_align:
@@ -129,11 +129,17 @@ prediction:
       min_warm: 20                     # Min warm genes per cell
       min_cold: 5                      # Min cold genes per cell
 
+    # ── Per-cell variance matching for cold genes ──────────────────
+    variance_match:
+      enabled: false                   # Match cold gene variance to warm gene per cell
+      min_warm: 10                     # Min warm genes per cell
+      min_cold: 3                      # Min cold genes per cell
+
     # ── Hybrid SVD + Gene-Similarity CF Interaction ──────────────────────
     hybrid_interaction:
       n_components: 30                 # SVD components for warm genes
       cf_knn: 30                       # K nearest warm neighbors for cold gene CF
-      cf_weight: 0.7                   # CF blend weight (0=formula only, 1=CF only)
+      cf_weight: 0.85                  # CF blend weight (0=formula only, 1=CF only)
       cf_multi_kernel: true            # Use multi-kernel gene similarity (COSINE-style)
       cf_power: 2.0                    # Similarity power (p>1 amplifies high-sim neighbors)
 

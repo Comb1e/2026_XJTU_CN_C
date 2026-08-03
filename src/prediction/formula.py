@@ -1582,6 +1582,7 @@ def train_formula_models(
         "cf_weight": cf_weight,
         "calibrator": calibrator,
         "quantile_align_cfg": fm_cfg.get("quantile_align", {}),
+        "variance_match_cfg": fm_cfg.get("variance_match", {}),
         "profile_predictor": profile_predictor,
         "profile_cfg": profile_cfg,
         "profile_gene_feats": (
@@ -1717,13 +1718,23 @@ def predict_formula(
 
     # ── Per-cell quantile alignment for cold genes ──
     qa_cfg = models.get("quantile_align_cfg")
-    if qa_cfg and qa_cfg.get("enabled", True) and cold_genes:
+    if qa_cfg and qa_cfg.get("enabled", False) and cold_genes:
         from .calibration import PerCellQuantileAligner
         aligner = PerCellQuantileAligner(
             min_warm=qa_cfg.get("min_warm", 20),
             min_cold=qa_cfg.get("min_cold", 5),
         )
         final = aligner.align(final, cell_ids, gene_ids, cold_genes)
+
+    # ── Per-cell variance matching for cold genes ──
+    vm_cfg = models.get("variance_match_cfg")
+    if vm_cfg and vm_cfg.get("enabled", True) and cold_genes:
+        from .calibration import per_cell_variance_match
+        final = per_cell_variance_match(
+            final, cell_ids, gene_ids, cold_genes,
+            min_warm=vm_cfg.get("min_warm", 10),
+            min_cold=vm_cfg.get("min_cold", 3),
+        )
 
     return final.astype(np.float32)
 
